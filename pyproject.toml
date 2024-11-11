@@ -1,0 +1,26 @@
+[build-system]
+requires = ["setuptools >= 39.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "logind-idle-session-extras"
+version = ["0.0.1"]
+authors = [
+  {name = "Louis Wust", email = "louiswust@fastmail.fm"},
+]
+description = "Refresh systemd-logind idle timeouts based on supplemental user activity (e.g., VNC tunnel)"
+readme = "README.md"
+license = {text = "MIT License"}
+classifiers = [
+  "Development Status :: 3 - Alpha",
+  "Intended Audience :: Developers",
+  "License :: OSI Approved :: MIT License",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.6",
+]
+dependencies = []
+requires-python = ">= 3.6"
+
+[project.urls]
+Repository = "https://github.com/liverwust/logind-idle-session-extras/"
+Issues = "https://github.com/liverwust/logind-idle-session-extras/issues"

@@ -70,6 +70,27 @@ class Session:
         else:
             return SessionType.OTHER
 
+    @property
+    def uid(self) -> int:
+        """User identifier (UID) for this Session"""
+        uid = self._session.get_cached_property('User')
+        if uid is None:
+            raise ValueError('Could not retrieve session UID')
+        return uid.unpack()[0]
+
+    @property
+    def scope(self) -> str:
+        """Systemd scope name for this Session"""
+        scope = self._session.get_cached_property('Scope')
+        if scope is None:
+            raise ValueError('Could not retrieve session Scope')
+        return scope.get_string()
+
+    @property
+    def scope_path(self) -> str:
+        """'Fully-qualified' SystemD scope path for this Session"""
+        return "/user.slice/user-{0}.slice/{1}".format(self.uid, self.scope)
+
 
 class Manager:
     """Proxy for the org.freedesktop.login1.Manager interface

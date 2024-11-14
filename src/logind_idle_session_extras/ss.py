@@ -16,15 +16,11 @@ class SocketProcess(NamedTuple):
     # Process identifier (PID) of the process bound to this socket
     pid: int
 
-    # File descriptor number within the process representing this socket
-    fd: int
-
     def __eq__(self, other):
         if not isinstance(other, SocketProcess):
             return False
         return (self.comm == other.comm and
-                self.pid == other.pid and
-                self.fd == other.fd)
+                self.pid == other.pid)
 
 
 class Socket(NamedTuple):
@@ -60,7 +56,7 @@ class Socket(NamedTuple):
             other_processes = list(other.processes)
             for my_process in self.processes:
                 try:
-                    other_idx = other_processes.find(my_process)
+                    other_idx = other_processes.index(my_process)
                     del other_processes[other_idx]
                 except ValueError:
                     return False
@@ -103,6 +99,10 @@ class _SSInvocation:
         self._established_sockets = []
         self._loopback_connections = []
 
+    @property
+    def loopback_connections(self):
+        return self._loopback_connections
+
     def _step_1_obtain_raw_ss_data(self):
         """Run 'ss' and populate the initial collections
 
@@ -136,7 +136,8 @@ class _SSInvocation:
         paren_re = re.compile(r'[()]')
         comm_re = re.compile(r'^"(.*)"$')
         pid_re = re.compile(r'^pid=(\d+)$')
-        fd_re = re.compile(r'^fd=(\d+)$')
+        # UNUSED
+        #fd_re = re.compile(r'^fd=(\d+)$')
 
         for socket_line in cp.stdout.splitlines():
             socket_match = socket_re.match(socket_line)
@@ -164,17 +165,14 @@ class _SSInvocation:
 
                     comm_match = comm_re.match(individual_parts[0])
                     pid_match = pid_re.match(individual_parts[1])
-                    fd_match = fd_re.match(individual_parts[2])
                     if (comm_match is None or
-                        pid_match is None or
-                        fd_match is None):
+                        pid_match is None):
                         raise ValueError('invalid process spec detected: "{}"',
                                         process_clause)
 
                     individual_socket.processes.append(SocketProcess(
                         comm=comm_match.group(1),
-                        pid=int(pid_match.group(1)),
-                        fd=int(fd_match.group(1))
+                        pid=int(pid_match.group(1))
                     ))
 
                 if socket_match.group('State') == 'LISTEN':
@@ -216,3 +214,38 @@ class _SSInvocation:
                         client=socket,
                         server=candidate
                     ))
+
+    def _step_3_identify_listener_services(self):
+        """Reorient loopback connection pairs based on listening services
+
+        Given that a LoopbackConnection involves two endpoints on the same
+        machine, it should be easy to determine which one is actually the
+        "server" in this context and which is the "client." The "server" is
+        associated with a listening port.
+        """
+
+        for idx, loopback_connection in enumerate(self._loopback_connections):
+            if loopback_connection.client in self._listen_sockets:
+                self._loopback_connections[idx] = LoopbackConnection(
+                        client=loopback_connection.server,
+                        server=loopback_connection.client
+                )
+
+    def run(self):
+        """Apply all three steps in sequence"""
+        self._step_1_obtain_raw_ss_data()
+        self._step_2_pair_loopback_peers()
+        self._step_3_identify_listener_services()
+
+
+def find_loopback_connections() -> Collection[LoopbackConnection]:
+    """Obtain the full set of "loopback connections" on the local system
+
+    A "loopback connection" is a pair of TCP sockets -- one client, and one
+    server -- where both exist in the context of the local system and traverse
+    the loopback adapter.
+    """
+
+    ss = _SSInvocation()
+    ss.run()
+    return ss.loopback_connections

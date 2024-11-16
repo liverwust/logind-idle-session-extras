@@ -1,0 +1,2 @@
+PyGObject>=3.28.3
+psutil>=5.4.3

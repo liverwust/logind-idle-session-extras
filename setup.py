@@ -8,7 +8,7 @@ long_description = (this_directory / "README.md").read_text()
 
 setup(
     name="logind-idle-session-extras",
-    version="0.0.2",
+    version="0.0.3",
     description=("Refresh systemd-logind idle timeouts based on supplemental "
                  "user activity (e.g., VNC tunnel)"),
     long_description=long_description,
@@ -26,5 +26,10 @@ setup(
     ],
     license="MIT License",
     package_dir={"": "src"},
+    entry_points={
+        'console_scripts': [
+            'logind-idle-session-extras = logind_idle_session_extras.main:iterate'
+        ]
+    },
     python_requires=">= 3.6"
 )

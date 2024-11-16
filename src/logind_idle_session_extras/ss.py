@@ -4,7 +4,7 @@
 from ipaddress import IPv4Address, IPv6Address, ip_address
 import re
 import subprocess
-from typing import Collection, Mapping, NamedTuple, Optional, Tuple, Union
+from typing import List, NamedTuple, Tuple, Union
 
 
 class SocketProcess(NamedTuple):
@@ -41,7 +41,7 @@ class Socket(NamedTuple):
     port: int
 
     # Zero or more SocketProcesses associated with the local socket
-    processes: Collection[SocketProcess]
+    processes: List[SocketProcess]
 
     def __eq__(self, other):
         if not isinstance(other, Socket):
@@ -80,19 +80,19 @@ class _SSInvocation:
     """
 
     # A set of Sockets which are known to be listening.
-    _listen_sockets: Collection[Socket]
+    _listen_sockets: List[Socket]
 
     # Associations of Sockets which are known to be part of an established
     # connection, along with the peer address and port numbers they are
     # connected to.
-    _established_sockets: Collection[Tuple[Socket,
-                                           Union[IPv4Address,
-                                                 IPv6Address],
-                                           int]]
+    _established_sockets: List[Tuple[Socket,
+                                     Union[IPv4Address,
+                                           IPv6Address],
+                                     int]]
 
     # A collection of LocalConnections which have been extracted from the
     # previously-populated _established_sockets.
-    _loopback_connections: Collection[LoopbackConnection]
+    _loopback_connections: List[LoopbackConnection]
 
     def __init__(self):
         self._listen_sockets = []
@@ -238,7 +238,7 @@ class _SSInvocation:
         self._step_3_identify_listener_services()
 
 
-def find_loopback_connections() -> Collection[LoopbackConnection]:
+def find_loopback_connections() -> List[LoopbackConnection]:
     """Obtain the full set of "loopback connections" on the local system
 
     A "loopback connection" is a pair of TCP sockets -- one client, and one

@@ -3,7 +3,7 @@
 
 import json
 import re
-from typing import Any, Collection, NamedTuple, Optional, Tuple
+from typing import List, NamedTuple, Optional
 
 
 class Process(NamedTuple):
@@ -31,7 +31,7 @@ class SessionProcess(NamedTuple):
 
     # A (possibly empty) list of backend processes that this particular
     # process has tunneled back into
-    tunnels: Collection[Process]
+    tunnels: List[Process]
 
 
 class Session(NamedTuple):
@@ -50,7 +50,7 @@ class Session(NamedTuple):
     tty: str
 
     # Collection of Process objects belonging to this Session
-    processes: Collection[SessionProcess]
+    processes: List[SessionProcess]
 
 
 class Rule:
@@ -87,7 +87,8 @@ class Rule:
 
         if self.cmdline_re is not None:
             found = False
-            for process in session.processes:
+            for process in map(lambda p: p.process,
+                               session.processes):
                 if re.match(self.cmdline_re, process.cmdline) is not None:
                     found = True
             if not found:
@@ -104,13 +105,13 @@ class Rule:
 
         return True
 
-    def filter(self, sessions: Collection[Session]) -> Collection[Session]:
+    def filter(self, sessions: List[Session]) -> List[Session]:
         """Return the Sessions which match this Rule from the collection"""
 
-        return filter(lambda x: self.match(x), sessions)
+        return list(filter(lambda x: self.match(x), sessions))
 
 
-def parse_rules_from_json(fp) -> Collection[Rule]:
+def parse_rules_from_json(fp) -> List[Rule]:
     """Deserialize JSON into Rules from the given file-like object fp"""
 
     return json.load(fp, object_hook=Rule)

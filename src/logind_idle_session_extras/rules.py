@@ -3,11 +3,11 @@
 
 import json
 import re
-from typing import Collection, NamedTuple, Optional, Tuple
+from typing import Any, Collection, NamedTuple, Optional, Tuple
 
 
 class Process(NamedTuple):
-    """Representation of a process running within an individual Session"""
+    """Representation of a process either inside of a Session or otherwise"""
 
     # Process identifier (PID) of this process
     pid: int
@@ -15,16 +15,23 @@ class Process(NamedTuple):
     # Short name of the binary image (e.g., "sshd") for this process
     comm: str
 
+    # The full command line that the process is running with
+    cmdline: str
+
+
+class SessionProcess(NamedTuple):
+    """Representation of a Process specifically inside of a Session"""
+
+    # Generic Process details for this SessionProcess
+    process: Process
+
     # Whether this process has been marked as the "Leader" of its session
     # (i.e., whether Process.pid == Session.leader_pid)
     leader: bool
 
-    # The full command line that the process is running with
-    cmdline: str
-
-    # A (possibly empty) list of (PID, port#) pairs representing local server
-    # processes (Xvnc) that this particular process has connected with
-    tunnels: Collection[Tuple[int, int]]
+    # A (possibly empty) list of backend processes that this particular
+    # process has tunneled back into
+    tunnels: Collection[Process]
 
 
 class Session(NamedTuple):
@@ -36,14 +43,14 @@ class Session(NamedTuple):
     # User identifier (UID) which owns this Session
     uid: int
 
-    # Symbolic username which owns this session, corresponding to uid
-    username: str
+    # The leader PID which is the one that registered this session
+    leader_pid: int
 
-    # The TTY or PTY which is assigned to this session
+    # The TTY or PTY which is assigned to this session (or a blank string)
     tty: str
 
     # Collection of Process objects belonging to this Session
-    processes: Collection[Process]
+    processes: Collection[SessionProcess]
 
 
 class Rule:
@@ -57,8 +64,8 @@ class Rule:
     (i.e., the corresponding Session or Process field will be ignored).
     """
 
-    # Fixed-string match against the symbolic username owner of the Session
-    username: Optional[str]
+    # Fixed-string match against the numeric UID owner of the Session
+    uid: Optional[int]
 
     # Regular expression match (not search) against the cmdline of the Process
     cmdline_re: Optional[str]
@@ -66,27 +73,34 @@ class Rule:
     # Fixed-string match against the short process name of a tunneled server
     tunnel_comm: Optional[str]
 
-    def __init__(self, username=None, cmdline_re=None, tunnel_comm=None):
-        self.username = username
+    def __init__(self, uid=None, cmdline_re=None, tunnel_comm=None):
+        self.uid = uid
         self.cmdline_re = cmdline_re
         self.tunnel_comm = tunnel_comm
 
     def match(self, session: Session) -> bool:
         """Returns true if the Session matches this Rule false if not"""
 
-        if self.username is not None:
-            if session.username != self.username:
+        if self.uid is not None:
+            if session.uid != self.uid:
                 return False
 
         if self.cmdline_re is not None:
+            found = False
             for process in session.processes:
-                if re.match(self.cmdline_re, process.cmdline) is None:
-                    return False
+                if re.match(self.cmdline_re, process.cmdline) is not None:
+                    found = True
+            if not found:
+                return False
 
         if self.tunnel_comm is not None:
+            found = False
             for process in session.processes:
-                if process.comm != self.tunnel_comm:
-                    return False
+                for tunnel in process.tunnels:
+                    if tunnel.comm != self.tunnel_comm:
+                        found = True
+            if not found:
+                return False
 
         return True
 

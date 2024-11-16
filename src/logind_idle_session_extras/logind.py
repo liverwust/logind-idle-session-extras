@@ -1,18 +1,9 @@
 """Session information from systemd-logind"""
 
 
-from enum import auto, Enum
 from typing import Collection
 
 from gi.repository import Gio
-
-
-class SessionType(Enum):
-    """Distinguish between several meaningful categories of Session"""
-    LOCAL = auto()
-    SSH = auto()
-    VNC = auto()
-    OTHER = auto()
 
 
 class Session:
@@ -62,21 +53,28 @@ class Session:
         return id.get_string()
 
     @property
-    def session_type(self) -> SessionType:
-        """One of several meaningful categories for this Session"""
-        if self._session.get_cached_property('Type') == 'tty':
-            # TODO: need to check whether it is local
-            return SessionType.SSH
-        else:
-            return SessionType.OTHER
-
-    @property
     def uid(self) -> int:
         """User identifier (UID) for this Session"""
         uid = self._session.get_cached_property('User')
         if uid is None:
             raise ValueError('Could not retrieve session UID')
         return uid.unpack()[0]
+
+    @property
+    def tty(self) -> str:
+        """TTY or PTY for this Session (or a blank string)"""
+        tty = self._session.get_cached_property('TTY')
+        if tty is None:
+            raise ValueError('Could not retrieve session TTY')
+        return tty.get_string()
+
+    @property
+    def leader(self) -> int:
+        """PID of the process that registered the session"""
+        leader = self._session.get_cached_property('Leader')
+        if leader is None:
+            raise ValueError('Could not retrieve session Leader')
+        return leader.get_uint32()
 
     @property
     def scope(self) -> str:

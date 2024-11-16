@@ -19,10 +19,19 @@ setup(
     packages=["logind_idle_session_extras"],
     classifiers=[
         "Development Status :: 3 - Alpha",
-        "Intended Audience :: Developers",
+        "Environment :: No Input/Output (Daemon)",
+        "Intended Audience :: System Administrators",
         "License :: OSI Approved :: MIT License",
+        "Operating System :: POSIX :: Linux",
         "Programming Language :: Python :: 3",
-        "Programming Language :: Python :: 3.6"
+        "Programming Language :: Python :: 3.6",
+        "Programming Language :: Python :: 3.9",
+        "Topic :: Security",
+        "Topic :: System :: Shells",
+        "Topic :: System :: System Shells",
+        "Topic :: System :: Systems Administration",
+        "Topic :: Terminals",
+        "Topic :: Utilities"
     ],
     license="MIT License",
     package_dir={"": "src"},

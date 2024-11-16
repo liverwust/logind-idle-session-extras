@@ -19,7 +19,7 @@ def iterate():
 
     sessions: Collection[rules.Session] = []
     for logind_session in logind_sessions:
-        session_processes: Collection[SessionProcess] = []
+        session_processes: Collection[rules.SessionProcess] = []
         for ps_obj in ps.processes_in_scope_path(logind_session.scope_path):
             tunnels: Collection[rules.Process] = []
             for loopback_connection in loopback_connections:

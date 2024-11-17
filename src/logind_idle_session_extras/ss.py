@@ -62,6 +62,7 @@ class Socket(NamedTuple):
                     return False
             return True
 
+
 class LoopbackConnection(NamedTuple):
     """Represent a loopback TCP connection between two LocalSockets"""
 
@@ -72,7 +73,7 @@ class LoopbackConnection(NamedTuple):
     server: Socket
 
 
-class _SSInvocation:
+class SSInvocation:
     """Collect context derived from an invocation of of the 'ss' command
 
     Users are not intended to instantiate this class directly. Please just see
@@ -80,35 +81,31 @@ class _SSInvocation:
     """
 
     # A set of Sockets which are known to be listening.
-    _listen_sockets: List[Socket]
+    listen_sockets: List[Socket]
 
     # Associations of Sockets which are known to be part of an established
     # connection, along with the peer address and port numbers they are
     # connected to.
-    _established_sockets: List[Tuple[Socket,
-                                     Union[IPv4Address,
-                                           IPv6Address],
-                                     int]]
+    established_sockets: List[Tuple[Socket,
+                                    Union[IPv4Address,
+                                          IPv6Address],
+                              int]]
 
     # A collection of LocalConnections which have been extracted from the
-    # previously-populated _established_sockets.
-    _loopback_connections: List[LoopbackConnection]
+    # previously-populated established_sockets.
+    loopback_connections: List[LoopbackConnection]
 
     def __init__(self):
-        self._listen_sockets = []
-        self._established_sockets = []
-        self._loopback_connections = []
-
-    @property
-    def loopback_connections(self):
-        return self._loopback_connections
+        self.listen_sockets = []
+        self.established_sockets = []
+        self.loopback_connections = []
 
     def _step_1_obtain_raw_ss_data(self):
         """Run 'ss' and populate the initial collections
 
         This is the first phase of a multi-phase operation. At the end of this
-        phase, the _listen_sockets will be populated and so will the
-        _established_sockets. The latter will contain ALL established
+        phase, the listen_sockets will be populated and so will the
+        established_sockets. The latter will contain ALL established
         connections for now.
         """
 
@@ -145,13 +142,8 @@ class _SSInvocation:
                 raise ValueError('invalid socket spec detected: "{}"',
                                 socket_line)
 
+            processes: List[SocketProcess] = []
             if socket_match.group('Process') is not None:
-                individual_socket = Socket(
-                    addr=ip_address(socket_match.group('LocalAddress')),
-                    port=int(socket_match.group('LocalPort')),
-                    processes=[]
-                )
-
                 process_clause = socket_match.group('Process')
                 process_without_parens = paren_re.sub('', process_clause)
                 process_parts = process_without_parens.split(',')
@@ -170,47 +162,55 @@ class _SSInvocation:
                         raise ValueError('invalid process spec detected: "{}"',
                                         process_clause)
 
-                    individual_socket.processes.append(SocketProcess(
+                    processes.append(SocketProcess(
                         comm=comm_match.group(1),
                         pid=int(pid_match.group(1))
                     ))
 
-                if socket_match.group('State') == 'LISTEN':
-                    self._listen_sockets.append(individual_socket)
-                elif socket_match.group('State') == 'ESTAB':
-                    self._established_sockets.append((
-                        individual_socket,
-                        ip_address(socket_match.group('PeerAddress')),
-                        int(socket_match.group('PeerPort'))
-                    ))
+            if socket_match.group('State') == 'LISTEN':
+                self.listen_sockets.append(Socket(
+                    addr=ip_address(socket_match.group('LocalAddress')),
+                    port=int(socket_match.group('LocalPort')),
+                    processes=processes
+                ))
+            elif socket_match.group('State') == 'ESTAB':
+                self.established_sockets.append((
+                    Socket(
+                        addr=ip_address(socket_match.group('LocalAddress')),
+                        port=int(socket_match.group('LocalPort')),
+                        processes=processes
+                    ),
+                    ip_address(socket_match.group('PeerAddress')),
+                    int(socket_match.group('PeerPort'))
+                ))
 
     def _step_2_pair_loopback_peers(self):
         """Identify established connection pairs to loopback addresses
 
         This is the second phase of a multi-phase operation. At the end of
-        this phase, the _loopback_connections collection will have been
-        populated with instances that represent _established_sockets whose
+        this phase, the loopback_connections collection will have been
+        populated with instances that represent established_sockets whose
         peer addresses belong to the loopback interface.
 
-        Notably, the _loopback_connections may contain loopback connections
+        Notably, the loopback_connections may contain loopback connections
         where the client/server directionality has been reversed (i.e., client
         is shown as server, and server as client). This will be fixed in the
         subsequent phase.
         """
 
-        for (idx, socket_tuple) in enumerate(self._established_sockets):
+        for (idx, socket_tuple) in enumerate(self.established_sockets):
             (socket, peer_addr, peer_port) = socket_tuple
 
             # Find the opposite side of the connection
             range_start = idx + 1
-            range_end = len(self._established_sockets)
-            candidates = self._established_sockets[range_start:range_end]
+            range_end = len(self.established_sockets)
+            candidates = self.established_sockets[range_start:range_end]
             for (candidate, candidate_addr, candidate_port) in candidates:
                 if (socket.addr == candidate_addr and
                     socket.port == candidate_port and
                     candidate.addr == peer_addr and
                     candidate.port == peer_port):
-                    self._loopback_connections.append(LoopbackConnection(
+                    self.loopback_connections.append(LoopbackConnection(
                         client=socket,
                         server=candidate
                     ))
@@ -224,9 +224,9 @@ class _SSInvocation:
         associated with a listening port.
         """
 
-        for idx, loopback_connection in enumerate(self._loopback_connections):
-            if loopback_connection.client in self._listen_sockets:
-                self._loopback_connections[idx] = LoopbackConnection(
+        for idx, loopback_connection in enumerate(self.loopback_connections):
+            if loopback_connection.client in self.listen_sockets:
+                self.loopback_connections[idx] = LoopbackConnection(
                         client=loopback_connection.server,
                         server=loopback_connection.client
                 )
@@ -246,6 +246,6 @@ def find_loopback_connections() -> List[LoopbackConnection]:
     the loopback adapter.
     """
 
-    ss = _SSInvocation()
+    ss = SSInvocation()
     ss.run()
     return ss.loopback_connections

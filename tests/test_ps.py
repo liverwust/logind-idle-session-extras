@@ -91,18 +91,18 @@ class PIDMapTestCase(TestCase):
 
             self.assertEqual(actual_processes[0].pid,
                              1345)
-            self.assertEqual((actual_processes[0].name(),
-                              actual_processes[0].cmdline()),
+            self.assertEqual((actual_processes[0].comm,
+                              actual_processes[0].cmdline),
                              process_specs[1345])
 
             self.assertEqual(actual_processes[1].pid,
                              1366)
-            self.assertEqual((actual_processes[1].name(),
-                              actual_processes[1].cmdline()),
+            self.assertEqual((actual_processes[1].comm,
+                              actual_processes[1].cmdline),
                              process_specs[1366])
 
             self.assertEqual(actual_processes[2].pid,
                              1391)
-            self.assertEqual((actual_processes[2].name(),
-                              actual_processes[2].cmdline()),
+            self.assertEqual((actual_processes[2].comm,
+                              actual_processes[2].cmdline),
                              process_specs[1391])

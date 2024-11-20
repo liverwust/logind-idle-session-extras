@@ -8,7 +8,7 @@ from textwrap import dedent
 from unittest import TestCase
 from unittest.mock import Mock, patch
 
-from logind_idle_session_extras import ss
+from logind_idle_session_extras import ps, ss
 
 
 def _subprocess_run_checker(output: str):
@@ -122,36 +122,40 @@ class TwoVncConnectionTestCase(TestCase):
                     client=ss.Socket(
                         addr=ip_address('127.0.0.1'),
                         port=38086,
-                        processes=set([ss.SocketProcess(
+                        processes=[ps.Process(
                             comm="sshd",
-                            pid=1258236
-                        )])
+                            pid=1258236,
+                            cmdline=""
+                        )]
                     ),
                     server=ss.Socket(
                         addr=ip_address('127.0.0.1'),
                         port=5902,
-                        processes=set([ss.SocketProcess(
+                        processes=[ps.Process(
                             comm="Xvnc",
-                            pid=1258996
-                        )])
+                            pid=1258996,
+                            cmdline=""
+                        )]
                     )
             ),
             ss.LoopbackConnection(
                     client=ss.Socket(
                         addr=ip_address('127.0.0.1'),
                         port=49688,
-                        processes=set([ss.SocketProcess(
+                        processes=[ps.Process(
                             comm="sshd",
-                            pid=1256518
-                        )])
+                            pid=1256518,
+                            cmdline=""
+                        )]
                     ),
                     server=ss.Socket(
                         addr=ip_address('127.0.0.1'),
                         port=5901,
-                        processes=set([ss.SocketProcess(
+                        processes=[ps.Process(
                             comm="Xvnc",
-                            pid=952570
-                        )])
+                            pid=952570,
+                            cmdline=""
+                        )]
                     )
             )
         ]

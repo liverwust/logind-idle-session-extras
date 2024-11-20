@@ -6,21 +6,7 @@ import re
 import subprocess
 from typing import List, NamedTuple, Tuple, Union
 
-
-class SocketProcess(NamedTuple):
-    """Represent a single local process associated with a Socket"""
-
-    # Short name of the process image (e.g., "sshd") bound to this socket
-    comm: str
-
-    # Process identifier (PID) of the process bound to this socket
-    pid: int
-
-    def __eq__(self, other):
-        if not isinstance(other, SocketProcess):
-            return False
-        return (self.comm == other.comm and
-                self.pid == other.pid)
+from . import ps
 
 
 class Socket(NamedTuple):
@@ -40,8 +26,8 @@ class Socket(NamedTuple):
     # TCP port number associated with the established TCP socket
     port: int
 
-    # Zero or more SocketProcesses associated with the local socket
-    processes: List[SocketProcess]
+    # Zero or more Processes associated with the local socket
+    processes: List[ps.Process]
 
     def __eq__(self, other):
         if not isinstance(other, Socket):
@@ -142,7 +128,7 @@ class SSInvocation:
                 raise ValueError('invalid socket spec detected: "{}"',
                                 socket_line)
 
-            processes: List[SocketProcess] = []
+            processes: List[ps.Process] = []
             if socket_match.group('Process') is not None:
                 process_clause = socket_match.group('Process')
                 process_without_parens = paren_re.sub('', process_clause)
@@ -162,9 +148,11 @@ class SSInvocation:
                         raise ValueError('invalid process spec detected: "{}"',
                                         process_clause)
 
-                    processes.append(SocketProcess(
+                    processes.append(ps.Process(
                         comm=comm_match.group(1),
-                        pid=int(pid_match.group(1))
+                        pid=int(pid_match.group(1)),
+                        # This needs to be blank -- we can't get it from ss
+                        cmdline=""
                     ))
 
             if socket_match.group('State') == 'LISTEN':

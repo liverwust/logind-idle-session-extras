@@ -89,6 +89,14 @@ class Session:
         """'Fully-qualified' SystemD scope path for this Session"""
         return "/user.slice/user-{0}.slice/{1}".format(self.uid, self.scope)
 
+    def terminate(self):
+        """Terminate the logind session and its processes"""
+        self._session.call_sync('Terminate',
+                                None,
+                                Gio.DBusCallFlags.NONE,
+                                -1,
+                                None)
+
 
 class Manager:
     """Proxy for the org.freedesktop.login1.Manager interface

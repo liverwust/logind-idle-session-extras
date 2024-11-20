@@ -21,7 +21,7 @@ class TTY:
     def __init__(self, name: str):
         if re.match(r'^(tty|pts/)[0-9]+$', name):
             self._name = name
-            self._atime, self._mtime = self._initialize_times()
+            self._atime, self._mtime = TTY._os_initialize_times(self.full_name)
         else:
             raise ValueError('invalid shortname for tty/pts: {}'.format(name))
 
@@ -42,23 +42,28 @@ class TTY:
     def mtime(self) -> datetime.datetime:
         return self._mtime
 
-    def _initialize_times(self) -> Tuple[datetime.datetime, datetime.datetime]:
-        st_result = os.stat(self.full_name)
-        return (datetime.datetime.fromtimestamp(st_result.st_atime),
-                datetime.datetime.fromtimestamp(st_result.st_mtime))
-
-    def _os_touch_times(self,
-                        atime: datetime.datetime,
-                        mtime: datetime.datetime):
-        os.utime(self.full_name,
-                 times=(timestamp.timestamp(),
-                        timestamp.timestamp()))
-
     def touch_times(self, timestamp: datetime.datetime):
         """Modify the filesystem entry for the TTY to set its atime to timestamp
   
         Update the atime and mtime of the TTY/PTY at the full_name path to
         match the provided timestamp.
         """
-        self._os_touch_times(timestamp, timestamp)
+        TTY._os_touch_times(self.full_name, timestamp, timestamp)
         self._atime, self._mtime = timestamp, timestamp
+
+    @staticmethod
+    def _os_initialize_times(path: str) -> Tuple[datetime.datetime,
+                                                 datetime.datetime]:
+        """As a staticmethod, this can easily be mocked"""
+        st_result = os.stat(path)
+        return (datetime.datetime.fromtimestamp(st_result.st_atime),
+                datetime.datetime.fromtimestamp(st_result.st_mtime))
+
+
+    @staticmethod
+    def _os_touch_times(path: str,
+                        atime: datetime.datetime,
+                        mtime: datetime.datetime):
+        """As a staticmethod, this can easily be mocked"""
+        os.utime(path, times=(atime.timestamp(),
+                              mtime.timestamp()))

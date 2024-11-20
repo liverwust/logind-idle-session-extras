@@ -30,10 +30,10 @@ def processes_in_scope_path(scope_path: str,
     """Obtain the set of PIDs for a given fully-qualified scope path"""
 
     if not re.match(r'^\/user\.slice\/user-\d+\.slice\/[^.\/]+\.scope$', scope_path):
-        raise ValueError('invalid fully-qualified scope path: {}'.format(scope_path))
+        raise ValueError(f'invalid fully-qualified scope path: {scope_path}')
 
     processes: List[Process] = []
-    with open_func("/sys/fs/cgroup/systemd{}/cgroup.procs".format(scope_path),
+    with open_func(f"/sys/fs/cgroup/systemd{scope_path}/cgroup.procs",
                    "r") as cgroup_f:
         for cgroup_line in cgroup_f.readlines():
             pid = int(cgroup_line)

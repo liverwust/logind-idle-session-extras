@@ -32,21 +32,21 @@ class Socket(NamedTuple):
     def __eq__(self, other):
         if not isinstance(other, Socket):
             return False
-        elif self.addr != other.addr:
+        if self.addr != other.addr:
             return False
-        elif self.port != other.port:
+        if self.port != other.port:
             return False
-        elif len(self.processes) != len(other.processes):
+        if len(self.processes) != len(other.processes):
             return False
-        else:
-            other_processes = list(other.processes)
-            for my_process in self.processes:
-                try:
-                    other_idx = other_processes.index(my_process)
-                    del other_processes[other_idx]
-                except ValueError:
-                    return False
-            return True
+
+        other_processes = list(other.processes)
+        for my_process in self.processes:
+            try:
+                other_idx = other_processes.index(my_process)
+                del other_processes[other_idx]
+            except ValueError:
+                return False
+        return True
 
 
 class LoopbackConnection(NamedTuple):
@@ -86,7 +86,9 @@ class SSInvocation:
         self.established_sockets = []
         self.loopback_connections = []
 
-    def _step_1_obtain_raw_ss_data(self):
+    # There are a lot of local variables, but it's a complex problem
+    # pylint: disable-next=too-many-locals
+    def step_1_obtain_raw_ss_data(self):
         """Run 'ss' and populate the initial collections
 
         This is the first phase of a multi-phase operation. At the end of this
@@ -103,7 +105,8 @@ class SSInvocation:
                             "--processes",
                             "--tcp"],
                             encoding='utf-8',
-                            stdout=subprocess.PIPE)
+                            stdout=subprocess.PIPE,
+                            check=True)
 
         # LISTEN 0 128 0.0.0.0:22 0.0.0.0:* users:(("sshd",pid=5533,fd=3))
         socket_re = re.compile(r'^(?P<State>[-A-Z]+)\s+'
@@ -125,8 +128,8 @@ class SSInvocation:
         for socket_line in cp.stdout.splitlines():
             socket_match = socket_re.match(socket_line)
             if socket_match is None:
-                raise ValueError('invalid socket spec detected: "{}"',
-                                socket_line)
+                raise ValueError(f'invalid socket spec detected: '
+                                 f'"{socket_line}"')
 
             processes: List[ps.Process] = []
             if socket_match.group('Process') is not None:
@@ -135,8 +138,8 @@ class SSInvocation:
                 process_parts = process_without_parens.split(',')
 
                 if len(process_parts) % 3 != 0:
-                    raise ValueError('invalid process spec detected: "{}"',
-                                    process_clause)
+                    raise ValueError(f'invalid process spec detected: '
+                                     f'"{process_clause}"')
 
                 for base in range(0, len(process_parts) // 3):
                     individual_parts = process_parts[base*3:(base+1)*3]
@@ -145,8 +148,8 @@ class SSInvocation:
                     pid_match = pid_re.match(individual_parts[1])
                     if (comm_match is None or
                         pid_match is None):
-                        raise ValueError('invalid process spec detected: "{}"',
-                                        process_clause)
+                        raise ValueError(f'invalid process spec detected: '
+                                         f'"{process_clause}"')
 
                     processes.append(ps.Process(
                         comm=comm_match.group(1),
@@ -172,7 +175,7 @@ class SSInvocation:
                     int(socket_match.group('PeerPort'))
                 ))
 
-    def _step_2_pair_loopback_peers(self):
+    def step_2_pair_loopback_peers(self):
         """Identify established connection pairs to loopback addresses
 
         This is the second phase of a multi-phase operation. At the end of
@@ -203,7 +206,7 @@ class SSInvocation:
                         server=candidate
                     ))
 
-    def _step_3_identify_listener_services(self):
+    def step_3_identify_listener_services(self):
         """Reorient loopback connection pairs based on listening services
 
         Given that a LoopbackConnection involves two endpoints on the same
@@ -221,9 +224,9 @@ class SSInvocation:
 
     def run(self):
         """Apply all three steps in sequence"""
-        self._step_1_obtain_raw_ss_data()
-        self._step_2_pair_loopback_peers()
-        self._step_3_identify_listener_services()
+        self.step_1_obtain_raw_ss_data()
+        self.step_2_pair_loopback_peers()
+        self.step_3_identify_listener_services()
 
 
 def find_loopback_connections() -> List[LoopbackConnection]:

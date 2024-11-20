@@ -16,10 +16,10 @@ def _subprocess_run_checker(output: str):
 
     def _inner_subprocess_run_checker(*args, **_):
         if basename(args[0][0]) != "ss":
-            raise ValueError("Unexpected command {}".format(args[0]))
-        completedProcess = Mock()
-        completedProcess.stdout = output
-        return completedProcess
+            raise ValueError(f"Unexpected command {args[0]}")
+        completed_process = Mock()
+        completed_process.stdout = output
+        return completed_process
 
     return _inner_subprocess_run_checker
 
@@ -45,6 +45,7 @@ class TwoVncConnectionTestCase(TestCase):
 
     @staticmethod
     def command_output() -> str:
+        """Obtain reusable command_output string for this test case"""
         return dedent("""\
             LISTEN    0      100         127.0.0.1:25           0.0.0.0:*     users:(("master",pid=5337,fd=14))                          
             LISTEN    0      5           127.0.0.1:5901         0.0.0.0:*     users:(("Xvnc",pid=952570,fd=6))                           
@@ -117,7 +118,7 @@ class TwoVncConnectionTestCase(TestCase):
                                     invoke.established_sockets)),
                             expected_peer_pairs)
 
-        expectedLoopbacks = [
+        expected_loopbacks = [
             ss.LoopbackConnection(
                     client=ss.Socket(
                         addr=ip_address('127.0.0.1'),
@@ -160,5 +161,5 @@ class TwoVncConnectionTestCase(TestCase):
             )
         ]
 
-        self.assertListEqual(expectedLoopbacks,
+        self.assertListEqual(expected_loopbacks,
                              invoke.loopback_connections)

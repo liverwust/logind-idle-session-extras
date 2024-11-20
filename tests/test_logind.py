@@ -25,6 +25,10 @@ class MockGio:
     """
 
     def __init__(self, results_spec: Mapping[str, Mapping[str, Any]]):
+        # We didn't choose these unusual names -- they are inherited from
+        # logind and its GObject / D-Bus interface
+        # pylint: disable=invalid-name
+
         self.bus_get_sync = mock.Mock()
         self.BusType = mock.Mock()
         self.BusType.SYSTEM = 'SYSTEM'
@@ -56,11 +60,12 @@ class MockGio:
 
         if args[5] == "org.freedesktop.login1.Manager":
             return self._manager
-        elif args[5] == "org.freedesktop.login1.Session":
+        if args[5] == "org.freedesktop.login1.Session":
             session_id_match = re.match(_SESSION_NODE_RE, args[4])
             if session_id_match is None:
-                raise ValueError('invalid session node {}'.format(args[4]))
+                raise ValueError(f'invalid session node {args[4]}')
             return self._sessions[session_id_match.group(1)]
+        raise KeyError('Unknown D-Bus interface: {args[5]}')
 
     def _manager_call_sync(self, *_):
         """Return a list of Session results with the set of spec'd IDs"""
@@ -129,7 +134,7 @@ class MockGio:
                 try:
                     session.get_cached_property.assert_called()
                 except AssertionError as e:
-                    raise AssertionError('Session ID {}'.format(session_id)) from e
+                    raise AssertionError(f'Session ID {session_id}') from e
 
     @contextmanager
     def patch(self, target: str, check_all_sessions: bool = False):
@@ -219,8 +224,7 @@ class LogindTestCase(TestCase):
         ]
 
         with mock_gio.patch(GIO_TARGET, check_all_sessions=True):
-            m = logind_idle_session_extras.logind.Manager()
-            sessions = list(m.get_all_sessions())
+            sessions = list(logind_idle_session_extras.logind.get_all_sessions())
             self.assertEqual(len(sessions), 4)
 
             for expected_info_check in expected_info_checks:
@@ -232,7 +236,7 @@ class LogindTestCase(TestCase):
                             break
 
                     if matches:
-                        del(sessions[idx])
+                        del sessions[idx]
                         break
 
             self.assertEqual(len(sessions), 0)

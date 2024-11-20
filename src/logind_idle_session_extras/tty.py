@@ -23,10 +23,11 @@ class TTY:
             self._name = name
             self._atime, self._mtime = TTY._os_initialize_times(self.full_name)
         else:
-            raise ValueError('invalid shortname for tty/pts: {}'.format(name))
+            raise ValueError(f'invalid shortname for tty/pts: {name}')
 
     @property
     def name(self) -> str:
+        """Short name of the TTY (e.g., 'pts/4')"""
         return self._name
 
     @property
@@ -36,10 +37,12 @@ class TTY:
 
     @property
     def atime(self) -> datetime.datetime:
+        """Access time, which is updated by user activity only"""
         return self._atime
 
     @property
     def mtime(self) -> datetime.datetime:
+        """Modification time, which is updated by user activity AND stdout"""
         return self._mtime
 
     def touch_times(self, timestamp: datetime.datetime):

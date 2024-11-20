@@ -44,7 +44,7 @@ class MockCgroup:
         be true for the real sysfs too (though it's not clear whether that is
         a specified behavior or an implementation detail).
         """
-        return "".join(map(lambda x: "{}\n".format(x),
+        return "".join(map(lambda x: f"{x}\n",
                            sorted(self._pids)))
 
     def _psutil_process_init(self, *args, **_):

@@ -152,7 +152,6 @@ class SSInvocation:
                                          f'"{process_clause}"')
 
                     processes.append(ps.Process(
-                        comm=comm_match.group(1),
                         pid=int(pid_match.group(1)),
                         # This needs to be blank -- we can't get it from ss
                         cmdline=""

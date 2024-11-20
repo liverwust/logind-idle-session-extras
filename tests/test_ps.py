@@ -1,43 +1,76 @@
-"""Mock and unit-test the process table information from /sys/fs/cgroup"""
+"""Common process table /cgroup testing logic shared across all scenarios"""
 
 
-from contextlib import contextmanager
-from typing import Callable, Mapping, Tuple
-from unittest import TestCase
+from typing import List, Mapping
+from unittest import TestCase, TestSuite
 from unittest.mock import Mock, mock_open, patch
 
-from logind_idle_session_extras import ps
+import logind_idle_session_extras.ps
 
 
-PROCESS_TARGET = "psutil.Process"
+class CgroupPidsTestCase(TestCase):
+    """Unit testing for the ps module
 
-
-class MockCgroup:
-    """Mock the sysfs directory file and process table for a set of PIDs
-
-    Each PID may be associated with its own "command name" (e.g., sshd) and
-    "command line" (e.g. /usr/sbin/sshd [...args...]). When constructing the
-    MockCgroup, the first element in the tuple is the "comm" and the second is
-    the "cmdline."
+    This TestCase is meant to be subclassed, NOT run directly. The load_tests
+    function at the bottom of this module prevents it from being
+    auto-discovered.
     """
 
-    # Use the open_mock attribute to pass to processes_in_scope_path
-    open_mock: Callable
+    #
+    # Subclasses need to override these methods
+    #
 
-    def __init__(self, process_specs: Mapping[int, Tuple[str, str]]):
-        self._pids = list(process_specs.keys())
-        self.open_mock = mock_open(read_data=self.cgroup_procs_content)
+    def _mock_process_specs(self) -> Mapping[int, str]:
+        """Subclasses should override this method"""
+        raise NotImplementedError('_mock_process_specs')
 
-        self._psutil_process = Mock(side_effect=self._psutil_process_init)
-        self._processes = {}
-        for pid, (comm, cmdline) in process_specs.items():
-            self._processes[pid] = Mock()
-            self._processes[pid].pid = pid
-            self._processes[pid].name = Mock(return_value=comm)
-            self._processes[pid].cmdline = Mock(return_value=cmdline.split())
+    def _expected_process_objects(self) -> List[logind_idle_session_extras.ps.Process]:
+        """Subclasses should override this method"""
+        raise NotImplementedError('_expected_logind_sessions')
+
+    #
+    # Here are the actual test case methods -- these should not be overridden
+    #
+
+    def setUp(self):
+        self._mock_psutil_process(self._mock_process_specs())
+
+    def test_ps_interface_parsed_objects(self):
+        """Ensure that processes are appropriately parsed from the cgroup"""
+
+        with patch('psutil.Process', new=self._mocked_psutil_process):
+            expected_processes = self._expected_process_objects()
+            actual_processes = list(
+                    logind_idle_session_extras.ps.processes_in_scope_path(
+                        "/user.slice/user-1000.slice/session-1024.scope",
+                        open_func=self._mocked_open
+                    )
+            )
+            self.assertListEqual(expected_processes, actual_processes)
+
+    #
+    # Internal methods used by test cases -- these should not be overridden
+    #
+
+    def _mock_psutil_process(self, process_specs: Mapping[int, str]):
+        """Mock the sysfs directory file and process table for a set of PIDs
+
+        Each PID may be associated with its own "command line" (e.g.
+        /usr/sbin/sshd [...args...]).
+        """
+
+        self._mocked_processes = {}
+
+        self._mocked_psutil_process = Mock(side_effect=self._psutil_process_init)
+        for pid, cmdline in process_specs.items():
+            self._mocked_processes[pid] = Mock()
+            self._mocked_processes[pid].pid = pid
+            self._mocked_processes[pid].cmdline = Mock(return_value=cmdline.split())
+
+        self._mocked_open = mock_open(read_data=self._cgroup_procs_content)
 
     @property
-    def cgroup_procs_content(self) -> str:
+    def _cgroup_procs_content(self) -> str:
         """File contents of the simulated cgroup.procs file
 
         The PIDs from this Mock are guaranteed to be sorted. This appears to
@@ -45,64 +78,35 @@ class MockCgroup:
         a specified behavior or an implementation detail).
         """
         return "".join(map(lambda x: f"{x}\n",
-                           sorted(self._pids)))
+                           sorted(self._mocked_processes.keys())))
 
-    def _psutil_process_init(self, *args, **_):
+    def _psutil_process_init(self, *args, **_) -> Mock:
         """Mock the initialization of a Process by looking up a PID"""
-        return self._processes[int(args[0])]
+        return self._mocked_processes[int(args[0])]
 
-    @contextmanager
-    def patch(self, process_target: str = PROCESS_TARGET):
-        """Convenience patch wrapper for MockCgroup, with assertions
+    #
+    # Internal attributes used by test cases -- subclasses shouldn't use these
+    #
 
-        As with mock.patch normally, the "target" is the fully-qualified
-        attribute name of the "Gio" object which should be replaced by this
-        MockGio. See also:
-        https://docs.python.org/3.6/library/unittest.mock.html#where-to-patch
-        """
+    # The mocked psutil.Process object created by _mock_psutil_process()
+    _mocked_psutil_process: Mock
 
-        with patch(process_target, self._psutil_process) as process_mock:
-            yield self
-            process_mock.assert_called()
+    # Individually-mocked Process objects which have been cached
+    _mocked_processes: Mapping[int, Mock]
+
+    # A mocked variant of the builtin open() function
+    _mocked_open: Mock
 
 
-class PIDMapTestCase(TestCase):
-    """Ensure that the MockCgroup works properly"""
+def load_tests(*_):
+    """Implementation of the load_tests protocol
 
-    def test_mock_cgroup(self):
-        """Ensure that the MockCgroup works properly"""
+    https://docs.python.org/3/library/unittest.html#load-tests-protocol
 
-        process_specs = {
-                1345: ("hello-world",
-                       "/usr/bin/hello-world test1 test2"),
-                1366: ("sleep",
-                       "/usr/bin/sleep 180"),
-                1391: ("sshd",
-                       "/usr/sbin/sshd: user@notty")
-        }
+    All of the test cases should be added by the test_scenario*.py files. No
+    unit tests should be run directly from this common file.
 
-        cgroup_mock = MockCgroup(process_specs)
-
-        with cgroup_mock.patch():
-            actual_processes = list(ps.processes_in_scope_path(
-                    "/user.slice/user-1000.slice/session-1024.scope",
-                    open_func=cgroup_mock.open_mock
-            ))
-
-            self.assertEqual(actual_processes[0].pid,
-                             1345)
-            self.assertEqual((actual_processes[0].comm,
-                              actual_processes[0].cmdline),
-                             process_specs[1345])
-
-            self.assertEqual(actual_processes[1].pid,
-                             1366)
-            self.assertEqual((actual_processes[1].comm,
-                              actual_processes[1].cmdline),
-                             process_specs[1366])
-
-            self.assertEqual(actual_processes[2].pid,
-                             1391)
-            self.assertEqual((actual_processes[2].comm,
-                              actual_processes[2].cmdline),
-                             process_specs[1391])
+    We ignore the 1st argument (loader), 2nd argument (standard_tests), and
+    3rd argument (pattern) and substitute a totally custom (empty) TestSuite.
+    """
+    return TestSuite()

@@ -124,7 +124,6 @@ class TwoVncConnectionTestCase(TestCase):
                         addr=ip_address('127.0.0.1'),
                         port=38086,
                         processes=[ps.Process(
-                            comm="sshd",
                             pid=1258236,
                             cmdline=""
                         )]
@@ -133,7 +132,6 @@ class TwoVncConnectionTestCase(TestCase):
                         addr=ip_address('127.0.0.1'),
                         port=5902,
                         processes=[ps.Process(
-                            comm="Xvnc",
                             pid=1258996,
                             cmdline=""
                         )]
@@ -144,7 +142,6 @@ class TwoVncConnectionTestCase(TestCase):
                         addr=ip_address('127.0.0.1'),
                         port=49688,
                         processes=[ps.Process(
-                            comm="sshd",
                             pid=1256518,
                             cmdline=""
                         )]
@@ -153,7 +150,6 @@ class TwoVncConnectionTestCase(TestCase):
                         addr=ip_address('127.0.0.1'),
                         port=5901,
                         processes=[ps.Process(
-                            comm="Xvnc",
                             pid=952570,
                             cmdline=""
                         )]

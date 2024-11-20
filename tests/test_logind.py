@@ -2,7 +2,6 @@
 
 
 from functools import partial
-import pdb
 import re
 from typing import Any, List, Mapping
 from unittest import TestCase, TestSuite
@@ -15,13 +14,12 @@ _SESSION_NODE_RE = r'^/org/freedesktop/login1/session/([^/]+)$'
 
 
 class LogindTestCase(TestCase):
-    """Unit testing for the logind module"""
+    """Unit testing for the logind module
 
-    # The mocked Gio object created by _mock_gio()
-    _mocked_gio: Mock
-
-    # Cached list of sessions, to allow for later assertions
-    _sessions: Mapping[str, Mock]
+    This TestCase is meant to be subclassed, NOT run directly. The load_tests
+    function at the bottom of this module prevents it from being
+    auto-discovered.
+    """
 
     #
     # Subclasses need to override these methods
@@ -198,6 +196,16 @@ class LogindTestCase(TestCase):
                 session.get_cached_property.assert_called()
             except AssertionError as e:
                 raise AssertionError(f'Session ID {session_id}') from e
+
+    #
+    # Internal attributes used by test cases -- subclasses shouldn't use these
+    #
+
+    # The mocked Gio object created by _mock_gio()
+    _mocked_gio: Mock
+
+    # Cached list of sessions, to allow for later assertions
+    _sessions: Mapping[str, Mock]
 
 
 def load_tests(*_):

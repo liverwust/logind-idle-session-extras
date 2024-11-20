@@ -13,9 +13,6 @@ class Process(NamedTuple):
     # Process identifier (PID) of this process
     pid: int
 
-    # Short name of the binary image (e.g., "sshd") for this process
-    comm: str
-
     # The full command line that the process is running with
     cmdline: str
 
@@ -40,7 +37,6 @@ def processes_in_scope_path(scope_path: str,
             ps_obj = psutil.Process(pid)
             processes.append(Process(
                     pid=ps_obj.pid,
-                    comm=ps_obj.name(),
                     cmdline=' '.join(ps_obj.cmdline())
             ))
     return processes

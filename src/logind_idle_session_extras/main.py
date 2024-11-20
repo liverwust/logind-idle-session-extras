@@ -75,13 +75,16 @@ class Session(NamedTuple):
 #                pass
 
 
+# Constructing the tree involves many local variables, necessarily
+# pylint: disable-next=too-many-locals
 def load_sessions() -> List[Session]:
     """Construct an abstract Session/Process tree from system observations"""
 
-    logind_manager = logind.Manager()
-    logind_sessions = logind_manager.get_all_sessions()
+    logind_sessions = logind.get_all_sessions()
     loopback_connections = ss.find_loopback_connections()
 
+    # Constructing the tree involves many layers of nesting, necessarily
+    # pylint: disable=too-many-nested-blocks
     sessions: List[Session] = []
     for logind_session in logind_sessions:
         session_processes: List[SessionProcess] = []
@@ -113,11 +116,11 @@ def load_sessions() -> List[Session]:
         ))
 
     # Go back and resolve backend tunneled Processes to their Sessions
-    for sessionA, sessionB in product(sessions, sessions):
-        for processA, processB in product(sessionA.processes,
-                                          sessionB.processes):
-            for index, backend_processA in enumerate(processA.tunnels):
-                if backend_processA == processB:
-                    processA.tunnels[index] = sessionB
+    for session_a, session_b in product(sessions, sessions):
+        for process_a, process_b in product(session_a.processes,
+                                            session_b.processes):
+            for index, backend_process_a in enumerate(process_a.tunnels):
+                if backend_process_a == process_b:
+                    process_a.tunnels[index] = session_b
 
     return sessions

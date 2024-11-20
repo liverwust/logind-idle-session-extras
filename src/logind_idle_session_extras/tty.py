@@ -47,13 +47,18 @@ class TTY:
         return (datetime.datetime.fromtimestamp(st_result.st_atime),
                 datetime.datetime.fromtimestamp(st_result.st_mtime))
 
+    def _os_touch_times(self,
+                        atime: datetime.datetime,
+                        mtime: datetime.datetime):
+        os.utime(self.full_name,
+                 times=(timestamp.timestamp(),
+                        timestamp.timestamp()))
+
     def touch_times(self, timestamp: datetime.datetime):
         """Modify the filesystem entry for the TTY to set its atime to timestamp
   
         Update the atime and mtime of the TTY/PTY at the full_name path to
         match the provided timestamp.
         """
-        os.utime(self.full_name,
-                 times=(timestamp.timestamp(),
-                        timestamp.timestamp()))
+        self._os_touch_times(timestamp, timestamp)
         self._atime, self._mtime = timestamp, timestamp

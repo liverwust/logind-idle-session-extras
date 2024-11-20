@@ -7,6 +7,7 @@ from typing import Any, List, Mapping
 from unittest import TestCase, TestSuite
 from unittest.mock import ANY, Mock, patch
 
+from logind_idle_session_extras.list_set import compare_list_sets
 import logind_idle_session_extras.logind
 
 
@@ -50,22 +51,22 @@ class LogindTestCase(TestCase):
         """Ensure that objects are appropriately parsed from the logind API"""
 
         sessions = list(logind_idle_session_extras.logind.get_all_sessions())
-        self.assertEqual(len(sessions), 4)
+        expected_logind_sessions = self._expected_logind_sessions()
 
-        for expected_info_check in self._expected_logind_sessions():
-            for idx, session in enumerate(sessions):
-                matches = True
-                for attr, value in expected_info_check.items():
-                    if getattr(session, attr) != value:
-                        matches = False
-                        break
+        attrs = set()
+        for expected_logind_session in expected_logind_sessions:
+            attrs.update(expected_logind_session.keys())
 
-                if matches:
-                    del sessions[idx]
-                    break
-
-        self.assertEqual(len(sessions), 0)
+        actual_logind_sessions: List[Mapping[str, Any]] = []
+        for session in sessions:
+            actual_logind_session: Mapping[str, Any] = {}
+            for attr in attrs:
+                actual_logind_session[attr] = getattr(session, attr)
+            actual_logind_sessions.append(actual_logind_session)
         self._assert_fully_exercised()
+
+        self.assertTrue(compare_list_sets(expected_logind_sessions,
+                                          actual_logind_sessions))
 
     #
     # Internal methods used by test cases -- these should not be overridden

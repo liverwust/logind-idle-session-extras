@@ -34,7 +34,7 @@ class MockCgroup:
             self._processes[pid] = Mock()
             self._processes[pid].pid = pid
             self._processes[pid].name = Mock(return_value=comm)
-            self._processes[pid].cmdline = Mock(return_value=cmdline)
+            self._processes[pid].cmdline = Mock(return_value=cmdline.split())
 
     @property
     def cgroup_procs_content(self) -> str:

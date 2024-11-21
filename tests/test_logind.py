@@ -35,7 +35,7 @@ class LogindTestCase(TestCase):
         raise NotImplementedError('_expected_logind_sessions')
 
     #
-    # Here are the actual test case methods -- these should not be overridden
+    # Here are the actual test case methods -- these aren't usually overridden
     #
 
     def setUp(self):

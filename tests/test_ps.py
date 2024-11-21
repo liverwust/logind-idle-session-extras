@@ -1,4 +1,4 @@
-"""Common process table /cgroup testing logic shared across all scenarios"""
+"""Common process table / cgroup testing logic shared across all scenarios"""
 
 
 from typing import List, Mapping
@@ -29,24 +29,30 @@ class CgroupPidsTestCase(TestCase):
         raise NotImplementedError('_expected_logind_sessions')
 
     #
-    # Here are the actual test case methods -- these should not be overridden
+    # Here are the actual test case methods -- these aren't usually overridden
     #
 
     def setUp(self):
         self._mock_psutil_process(self._mock_process_specs())
 
+        mock_psutil_process_patcher = patch('psutil.Process',
+                                            new=self._mocked_psutil_process)
+        mock_psutil_process_patcher.start()
+        self.addCleanup(mock_psutil_process_patcher.stop)
+
     def test_ps_interface_parsed_objects(self):
         """Ensure that processes are appropriately parsed from the cgroup"""
 
-        with patch('psutil.Process', new=self._mocked_psutil_process):
-            expected_processes = self._expected_process_objects()
-            actual_processes = list(
-                    logind_idle_session_extras.ps.processes_in_scope_path(
-                        "/user.slice/user-1000.slice/session-1024.scope",
-                        open_func=self._mocked_open
-                    )
-            )
-            self.assertListEqual(expected_processes, actual_processes)
+        expected_processes = self._expected_process_objects()
+        actual_processes = list(
+                logind_idle_session_extras.ps.processes_in_scope_path(
+                    "/user.slice/user-1000.slice/session-1024.scope",
+                    open_func=self._mocked_open
+                )
+        )
+
+        self._mocked_psutil_process.assert_called()
+        self.assertListEqual(expected_processes, actual_processes)
 
     #
     # Internal methods used by test cases -- these should not be overridden

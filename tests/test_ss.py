@@ -1,161 +1,119 @@
-"""Unit testing for the ss module"""
+"""Common network loopback testing logic shared across all scenarios"""
 
 
-from contextlib import contextmanager
-from ipaddress import ip_address
+from ipaddress import IPv4Address, IPv6Address
 from os.path import basename
-from textwrap import dedent
-from unittest import TestCase
+from typing import List, Set, Tuple, Union
+from unittest import TestCase, TestSuite
 from unittest.mock import Mock, patch
 
-from logind_idle_session_extras import ps, ss
+from logind_idle_session_extras.list_set import compare_list_sets
+import logind_idle_session_extras.ps
+import logind_idle_session_extras.ss
 
 
-def _subprocess_run_checker(output: str):
-    """Validate the subprocess.run input and return output if OK"""
+class LoopbackConnectionTestCase(TestCase):
+    """Unit testing for the ss module
 
-    def _inner_subprocess_run_checker(*args, **_):
-        if basename(args[0][0]) != "ss":
-            raise ValueError(f"Unexpected command {args[0]}")
-        completed_process = Mock()
-        completed_process.stdout = output
-        return completed_process
-
-    return _inner_subprocess_run_checker
-
-
-@contextmanager
-def patch_subprocess_run(target: str, output: str):
-    """Patch the subprocess.run method to return some output
-
-    As with mock.patch normally, the "target" is the fully-qualified attribute
-    name of the "subprocess.run" object which should be replaced by this
-    mocked version. See also:
-    https://docs.python.org/3.6/library/unittest.mock.html#where-to-patch
+    This TestCase is meant to be subclassed, NOT run directly. The load_tests
+    function at the bottom of this module prevents it from being
+    auto-discovered.
     """
 
-    mock_run = Mock(side_effect=_subprocess_run_checker(output))
-    with patch(target, new=mock_run) as mock_run:
-        yield mock_run
-        mock_run.assert_called_once()
+    #
+    # Subclasses need to override these methods
+    #
 
+    def _mock_raw_ss_output(self) -> str:
+        """Subclasses should override this method"""
+        raise NotImplementedError('_mock_raw_ss_output')
 
-class TwoVncConnectionTestCase(TestCase):
-    """Dummy output and a nominal test case showing two VNC connections"""
+    def _expected_listening_ports(self) -> Set[int]:
+        """Subclasses should override this method"""
+        raise NotImplementedError('_expected_listening_ports')
 
-    @staticmethod
-    def command_output() -> str:
-        """Obtain reusable command_output string for this test case"""
-        return dedent("""\
-            LISTEN    0      100         127.0.0.1:25           0.0.0.0:*     users:(("master",pid=5337,fd=14))                          
-            LISTEN    0      5           127.0.0.1:5901         0.0.0.0:*     users:(("Xvnc",pid=952570,fd=6))                           
-            LISTEN    0      5           127.0.0.1:5902         0.0.0.0:*     users:(("Xvnc",pid=1258996,fd=6))                          
-            LISTEN    0      128           0.0.0.0:111          0.0.0.0:*     users:(("rpcbind",pid=4410,fd=4),("systemd",pid=1,fd=42))  
-            LISTEN    0      128           0.0.0.0:22           0.0.0.0:*     users:(("sshd",pid=4960,fd=3))                             
-            LISTEN    0      2048        127.0.0.1:631          0.0.0.0:*     users:(("cupsd",pid=162159,fd=8))                          
-            ESTAB     0      452        10.0.0.169:22        10.0.3.209:57343 users:(("sshd",pid=1256518,fd=4),("sshd",pid=1256491,fd=4))
-            SYN-SENT  0      1          10.0.0.169:45198 151.101.193.91:443   users:(("gnome-software",pid=1259638,fd=22))               
-            ESTAB     0      0           127.0.0.1:38086      127.0.0.1:5902  users:(("sshd",pid=1258236,fd=7))                          
-            TIME-WAIT 0      0          10.0.0.169:41180     10.0.4.244:636                                                              
-            TIME-WAIT 0      0          10.0.0.169:53546     10.0.2.100:3128                                                             
-            ESTAB     0      0           127.0.0.1:5901       127.0.0.1:49688 users:(("Xvnc",pid=952570,fd=23))                          
-            SYN-SENT  0      1          10.0.0.169:40676 151.101.129.91:443   users:(("gnome-shell",pid=1259171,fd=34))                  
-            ESTAB     0      0          10.0.0.169:22         10.0.1.53:41516 users:(("sshd",pid=1259753,fd=4),("sshd",pid=1259733,fd=4))
-            ESTAB     0      0           127.0.0.1:49688      127.0.0.1:5901  users:(("sshd",pid=1256518,fd=7))                          
-            ESTAB     0      0          10.0.0.169:22         10.0.1.53:39700 users:(("sshd",pid=1050325,fd=4),("sshd",pid=1050298,fd=4))
-            TIME-WAIT 0      0          10.0.0.169:41178     10.0.4.244:636                                                              
-            ESTAB     0      0          10.0.0.169:725       10.0.1.202:2049                                                             
-            TIME-WAIT 0      0          10.0.0.169:53532     10.0.2.100:3128                                                             
-            ESTAB     0      0          10.0.0.169:22         10.0.1.53:54592 users:(("sshd",pid=995013,fd=4),("sshd",pid=994974,fd=4))  
-            TIME-WAIT 0      0          10.0.0.169:41196     10.0.4.244:636                                                              
-            TIME-WAIT 0      0          10.0.0.169:41176     10.0.4.244:636                                                              
-            SYN-SENT  0      1          10.0.0.169:49948 151.101.193.91:443   users:(("gnome-shell",pid=6978,fd=32))                     
-            ESTAB     0      0           127.0.0.1:5902       127.0.0.1:38086 users:(("Xvnc",pid=1258996,fd=10))                         
-            ESTAB     0      612        10.0.0.169:22        10.0.3.209:57353 users:(("sshd",pid=1258236,fd=4),("sshd",pid=1258006,fd=4))
-            TIME-WAIT 0      0          10.0.0.169:53550     10.0.2.100:3128                                                             
-            ESTAB     0      0          10.0.0.169:861       10.0.1.203:2049                                                             
-            LISTEN    0      100             [::1]:25              [::]:*     users:(("master",pid=5337,fd=15))                          
-            LISTEN    0      5               [::1]:5901            [::]:*     users:(("Xvnc",pid=952570,fd=7))                           
-            LISTEN    0      5               [::1]:5902            [::]:*     users:(("Xvnc",pid=1258996,fd=7))                          
-            LISTEN    0      128              [::]:111             [::]:*     users:(("rpcbind",pid=4410,fd=6),("systemd",pid=1,fd=44))  
-            LISTEN    0      2048            [::1]:631             [::]:*     users:(("cupsd",pid=162159,fd=7))                          
-        """)
+    def _expected_peer_pairs(self) -> Set[Tuple[Union[IPv4Address,
+                                                      IPv6Address], int]]:
+        """Subclasses should override this method"""
+        raise NotImplementedError('_expected_peer_pairs')
 
-    def test_two_vnc_connections(self):
-        """Nominal test case for the Two VNC Connection test scenario
+    def _expected_connections(self) -> List[logind_idle_session_extras.ss.LoopbackConnection]:
+        """Subclasses should override this method"""
+        raise NotImplementedError('_expected_loopback_connections')
+
+    #
+    # Here are the actual test case methods -- these aren't usually overridden
+    #
+
+    def setUp(self):
+        self._mocked_subprocess_run = Mock(
+                side_effect=self._subprocess_run_with_check
+        )
+
+        mocked_subprocess_run_patcher = patch('subprocess.run',
+                                              new=self._mocked_subprocess_run)
+        mocked_subprocess_run_patcher.start()
+        self.addCleanup(mocked_subprocess_run_patcher.stop)
+
+    def test_three_stages_parsed_objects(self):
+        """Ensure that each of the three parsing stages performs correctly
 
         This reaches a _bit_ more deeply into the code than a unit test
-        perhaps should, but it is useful to keep track of some of the inner
-        workings to make sure everything is handled properly.
+        perhaps should -- or at least it makes a few too many assertions --
+        but it is useful to keep track of some of the inner workings to make
+        sure everything is handled properly (without mocking internals).
         """
 
-        command_output = TwoVncConnectionTestCase.command_output()
-        invoke = ss.SSInvocation()
-        with patch_subprocess_run("subprocess.run", command_output):
-            invoke.run()
+        invoke = logind_idle_session_extras.ss.SSInvocation()
+        invoke.run()
 
-        expected_listening_ports = set([22, 25, 25, 111, 111, 631, 631, 5901,
-                                        5901, 5902, 5902])
+        expected_listening_ports = self._expected_listening_ports()
         actual_listening_ports=set(map(lambda s: s.port,
                                        invoke.listen_sockets))
         self.assertSetEqual(expected_listening_ports,
                             actual_listening_ports)
 
-        expected_peer_pairs = set([
-                (ip_address('10.0.1.53'), 39700),
-                (ip_address('10.0.1.53'), 41516),
-                (ip_address('10.0.1.53'), 54592),
-                (ip_address('10.0.1.202'), 2049),
-                (ip_address('10.0.1.203'), 2049),
-                (ip_address('10.0.3.209'), 57343),
-                (ip_address('10.0.3.209'), 57353),
-                (ip_address('127.0.0.1'), 5901),
-                (ip_address('127.0.0.1'), 5902),
-                (ip_address('127.0.0.1'), 38086),
-                (ip_address('127.0.0.1'), 49688)
-        ])
-        self.assertSetEqual(set(map(lambda x: (x[1], x[2]),
-                                    invoke.established_sockets)),
-                            expected_peer_pairs)
+        expected_peer_pairs = self._expected_peer_pairs()
+        actual_peer_pairs = set(map(lambda x: (x[1], x[2]),
+                                    invoke.established_sockets))
+        self.assertSetEqual(expected_peer_pairs,
+                            actual_peer_pairs)
 
-        expected_loopbacks = [
-            ss.LoopbackConnection(
-                    client=ss.Socket(
-                        addr=ip_address('127.0.0.1'),
-                        port=38086,
-                        processes=[ps.Process(
-                            pid=1258236,
-                            cmdline=""
-                        )]
-                    ),
-                    server=ss.Socket(
-                        addr=ip_address('127.0.0.1'),
-                        port=5902,
-                        processes=[ps.Process(
-                            pid=1258996,
-                            cmdline=""
-                        )]
-                    )
-            ),
-            ss.LoopbackConnection(
-                    client=ss.Socket(
-                        addr=ip_address('127.0.0.1'),
-                        port=49688,
-                        processes=[ps.Process(
-                            pid=1256518,
-                            cmdline=""
-                        )]
-                    ),
-                    server=ss.Socket(
-                        addr=ip_address('127.0.0.1'),
-                        port=5901,
-                        processes=[ps.Process(
-                            pid=952570,
-                            cmdline=""
-                        )]
-                    )
-            )
-        ]
+        expected_connections = self._expected_connections()
+        actual_connections = invoke.loopback_connections
+        self.assertTrue(compare_list_sets(expected_connections,
+                                          actual_connections))
 
-        self.assertListEqual(expected_loopbacks,
-                             invoke.loopback_connections)
+    #
+    # Internal methods used by test cases -- these should not be overridden
+    #
+
+    def _subprocess_run_with_check(self, *args, **_) -> Mock:
+        """Mock the subprocess.run call with a check for 'ss' command"""
+
+        if basename(args[0][0]) != "ss":
+            raise ValueError(f"Unexpected command {args[0]}")
+        completed_process = Mock()
+        completed_process.stdout = self._mock_raw_ss_output()
+        return completed_process
+
+    #
+    # Internal attributes used by test cases -- subclasses shouldn't use these
+    #
+
+    # The mocked subprocess.run which will provide a particular stdout
+    _mocked_subprocess_run: Mock
+
+
+def load_tests(*_):
+    """Implementation of the load_tests protocol
+
+    https://docs.python.org/3/library/unittest.html#load-tests-protocol
+
+    All of the test cases should be added by the test_scenario*.py files. No
+    unit tests should be run directly from this common file.
+
+    We ignore the 1st argument (loader), 2nd argument (standard_tests), and
+    3rd argument (pattern) and substitute a totally custom (empty) TestSuite.
+    """
+    return TestSuite()

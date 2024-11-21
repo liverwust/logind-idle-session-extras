@@ -253,21 +253,34 @@ class MainLoopTestCase(TestCase):
     def test_check_time_discrepancy(self):
         """Ensure that an old atime is updated to match a new mtime"""
 
-        for expected_to_call, second_field in [(True, 8), (False, 6)]:
-            with self.subTest(expected_to_call=expected_to_call):
+        for expected_to_change, second_field in [(True, 8), (False, 6)]:
+            with self.subTest(expected_to_change=expected_to_change):
+                modified_inner_mock_tty = Mock()
+                modified_inner_mock_tty.atime = datetime.datetime(2024, 1, 2,
+                                                                  3, 4, 5, 6)
+                modified_inner_mock_tty.mtime = datetime.datetime(2024, 1, 2,
+                                                                  3, 4, 5,
+                                                                  second_field)
+                modified_inner_mock_tty.touch_times = Mock()
                 modified_mock_tty = MainLoopTestCase._mock_tty(
-                        atime=datetime.datetime(2024, 1, 2, 3, 4, 5, 6),
-                        mtime=datetime.datetime(2024, 1, 2, 3, 4, 5,
-                                                second_field)
+                        modified_inner_mock_tty
                 )
 
                 with patch('logind_idle_session_extras.tty.TTY',
                            new=modified_mock_tty):
                     actual_sessions = logind_idle_session_extras.main.load_sessions()
-                    actual_diff = logind_idle_session_extras.main.check_time_discrepancy(
+
+                    # This test case doesn't care which session it uses
+                    changed = logind_idle_session_extras.main.apply_time_discrepancy_rule(
                             actual_sessions[0]
                     )
-                    self.assertEqual(expected_to_call, actual_diff)
+                    self.assertEqual(expected_to_change, changed)
+
+                    if expected_to_change:
+                        modified_inner_mock_tty.touch_times.assert_called_once_with(
+                                datetime.datetime(2024, 1, 2, 3, 4, 5,
+                                                second_field)
+                        )
 
     #
     # Internal methods used by test cases -- these should not be overridden
@@ -300,19 +313,16 @@ class MainLoopTestCase(TestCase):
         return me.session.session_id == other.session.session_id
 
     @staticmethod
-    def _mock_tty(atime: Optional[datetime.datetime] = None,
-                  mtime: Optional[datetime.datetime] = None) -> Callable[[str], Mock]:
+    def _mock_tty(return_mock: Optional[Mock] = None) -> Callable[[str], Mock]:
         """Factory function to create tty.TTY constructor functions"""
 
         def _inner_mock_tty(tty_name: str) -> Mock:
-            tty = Mock()
-            tty.name = tty_name
-            if atime is not None:
-                tty.atime = atime
-            if mtime is not None:
-                tty.mtime = mtime
-            tty.touch_times = Mock()
-            return tty
+            if return_mock is None:
+                my_return_mock = Mock()
+            else:
+                my_return_mock = return_mock
+            my_return_mock.name = tty_name
+            return my_return_mock
 
         return _inner_mock_tty
 

@@ -56,25 +56,6 @@ class Session(NamedTuple):
         self.session.terminate()
 
 
-def check_time_discrepancy(session: Session) -> bool:
-    """Check whether the TTY's atime is at least as new as the mtime
-
-    As indicated in the README, there are multiple kinds of "user activity" on
-    the command-line. The systemd-logind logic for idle timeouts checks the
-    atime on the TTY/PTY. User keyboard activity updates both the mtime and
-    atime. On the other hand, program output _only_ updates the mtime.
-
-    This rule ensures that the atime is touched to match the mtime, when the
-    atime is older than the mtime. In doing so, program output will ALSO re-up
-    the idle timeout.
-    """
-
-    if session.tty is not None:
-        if session.tty.atime < session.tty.mtime:
-            return True
-    return False
-
-
 #def check_ssh_session_tunnel(session: Session) -> bool:
 #    """Check whether an SSH session is tunneled to a backend session
 #
@@ -143,3 +124,23 @@ def load_sessions() -> List[Session]:
                     process_a.tunnels[index] = session_b
 
     return sessions
+
+
+def apply_time_discrepancy_rule(session: Session) -> bool:
+    """Check and fix a TTY whose atime is older than its mtime
+
+    As indicated in the README, there are multiple kinds of "user activity" on
+    the command-line. The systemd-logind logic for idle timeouts checks the
+    atime on the TTY/PTY. User keyboard activity updates both the mtime and
+    atime. On the other hand, program output _only_ updates the mtime.
+
+    This rule ensures that the atime is touched to match the mtime, when the
+    atime is older than the mtime. In doing so, program output will ALSO re-up
+    the idle timeout.
+    """
+
+    if session.tty is not None:
+        if session.tty.atime < session.tty.mtime:
+            session.tty.touch_times(session.tty.mtime)
+            return True
+    return False

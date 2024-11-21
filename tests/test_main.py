@@ -207,6 +207,13 @@ class MainLoopTestCase(TestCase):
         tty_patcher.start()
         self.addCleanup(tty_patcher.stop)
 
+        null_username_resolver_patcher = patch(
+                'logind_idle_session_extras.getent.uid_to_username',
+                new=Mock(return_value=None)
+        )
+        null_username_resolver_patcher.start()
+        self.addCleanup(null_username_resolver_patcher.stop)
+
         self._register_expected_sessions()
         self._resolve_tunneled_sessions()
 

@@ -2,12 +2,17 @@
 
 
 from itertools import product
-from typing import List, NamedTuple, Optional, Union
+import logging
+from typing import List, Mapping, NamedTuple, Optional, Union
 
+import logind_idle_session_extras.getent
 import logind_idle_session_extras.logind
 import logind_idle_session_extras.ps
 import logind_idle_session_extras.ss
 import logind_idle_session_extras.tty
+
+
+logger = logging.getLogger(__name__)
 
 
 class SessionProcess(NamedTuple):
@@ -40,6 +45,9 @@ class Session(NamedTuple):
 
     # The TTY or PTY which is assigned to this session (or None)
     tty: Optional[logind_idle_session_extras.tty.TTY]
+
+    # The symbolic username corresponding to session.uid (or None)
+    username: Optional[str]
 
     # Collection of Process objects belonging to this Session
     processes: List[SessionProcess]
@@ -80,11 +88,18 @@ def load_sessions() -> List[Session]:
 
     logind_sessions = logind_idle_session_extras.logind.get_all_sessions()
     loopback_connections = logind_idle_session_extras.ss.find_loopback_connections()
+    resolved_usernames: Mapping[int, Optional[str]] = {}
 
     # Constructing the tree involves many layers of nesting, necessarily
     # pylint: disable=too-many-nested-blocks
     sessions: List[Session] = []
     for logind_session in logind_sessions:
+        if logind_session.uid not in resolved_usernames:
+            username = logind_idle_session_extras.getent.uid_to_username(
+                    logind_session.uid
+            )
+            resolved_usernames[logind_session.uid] = username
+
         session_processes: List[SessionProcess] = []
         for process in logind_idle_session_extras.ps.processes_in_scope_path(
                 logind_session.scope_path):
@@ -112,6 +127,7 @@ def load_sessions() -> List[Session]:
         sessions.append(Session(
                 session=logind_session,
                 tty=session_tty,
+                username=resolved_usernames[logind_session.uid],
                 processes=session_processes
         ))
 
@@ -122,6 +138,22 @@ def load_sessions() -> List[Session]:
             for index, backend_process_a in enumerate(process_a.tunnels):
                 if backend_process_a == process_b.process:
                     process_a.tunnels[index] = session_b
+
+
+    # Send the identified Sessions to the debug log
+    logger.debug('Identified %d sessions to be reviewed:')
+    for index, session in enumerate(sessions):
+        tty_string = "notty"
+        if session.tty is not None:
+            tty_string = session.tty.name
+        logger.debug('%d (id=%s): %s@%s with %d processes and '
+                     '%d active tunnels',
+                     index + 1,  # make index more human-friendly by adding 1
+                     session.session.session_id,
+                     session.username,
+                     tty_string,
+                     len(session.processes),
+                     sum(map(lambda p: len(p.tunnels), session.processes)))
 
     return sessions
 

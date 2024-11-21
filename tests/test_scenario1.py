@@ -10,11 +10,13 @@ and there is an idle GDM session running.
 from ipaddress import ip_address, IPv4Address, IPv6Address
 from textwrap import dedent
 from typing import Any, List, Mapping, Set, Tuple, Union
+from unittest.mock import Mock
 
+import logind_idle_session_extras.main
 import logind_idle_session_extras.ps
 import logind_idle_session_extras.ss
 
-from . import test_logind, test_ps, test_ss
+from . import test_logind, test_main, test_ps, test_ss
 
 
 class Scenario1LogindTestCase(test_logind.LogindTestCase):
@@ -513,3 +515,284 @@ class Scenario1LoopbackConnectionTestCase(test_ss.LoopbackConnectionTestCase):
                     )
             )
         ]
+
+
+class Scenario1MainLoopTestCase(test_main.MainLoopTestCase):
+    """Scenario1 unit testing for the ss module
+
+    See the docstring for the test_scenario1 module for an overall description
+    of Scenario 1 (single active user w/ VNC).
+
+    See also the other Scenario1* TestCases for hints about how to generate
+    the input data which was used to specify this test fixture.
+    """
+
+    def _mock_get_logind_sessions(self) -> List[Mock]:
+        """Input data to mock out the logind module and D-Bus"""
+        return [
+            test_main.MainLoopTestCase.create_mock_logind_session(
+                    session_id="1267",
+                    uid=1002,
+                    tty="pts/2",
+                    leader=952165,
+                    scope="session-1267.scope"
+            ),
+            test_main.MainLoopTestCase.create_mock_logind_session(
+                    session_id="1301",
+                    uid=0,
+                    tty="pts/1",
+                    leader=994974,
+                    scope="session-1301.scope"
+            ),
+            test_main.MainLoopTestCase.create_mock_logind_session(
+                    session_id="1337",
+                    uid=1002,
+                    tty="pts/0",
+                    leader=1050298,
+                    scope="session-1337.scope"
+            ),
+            test_main.MainLoopTestCase.create_mock_logind_session(
+                    session_id="c1",
+                    uid=42,
+                    tty="tty1",
+                    leader=5655,
+                    scope="session-c1.scope"
+            )
+        ]
+
+    def _mock_find_loopback_connections(self) -> List[Mock]:
+        """Input data to mock out the ss utility and module"""
+        return [
+            test_main.MainLoopTestCase.create_mock_loopback_connection(
+                    client_addr=ip_address('127.0.0.1'),
+                    client_port=49688,
+                    client_pids=[1256518],
+                    server_addr=ip_address('127.0.0.1'),
+                    server_port=5901,
+                    server_pids=[952570]
+            )
+        ]
+
+    def _mock_map_scope_processes(self) -> Mapping[str, Set[int]]:
+        """Input data to mock out the ps and cgroup interface module"""
+        return {
+            "1267": set([772211, 952570, 952581, 952582, 952591, 952592,
+                         952644, 952649, 952652, 952656, 952663, 952715,
+                         952727, 952766, 952768, 952770, 952774, 952775,
+                         952777, 952779, 952805, 952817, 952819, 952837,
+                         952841, 952853, 952861, 952868, 952875, 952885,
+                         952888, 952889, 952890, 952891, 952892, 952893,
+                         952894, 952895, 952898, 952904, 952905, 952907,
+                         952909, 952910, 952911, 952913, 952919, 952921,
+                         952935, 952941, 952959, 953009, 953028, 953050,
+                         953201, 953207, 953209, 953210, 953212, 953217]),
+            "1301": set([1258996, 1259009, 1259010, 1259026, 1259028, 1259067,
+                         1259083, 1259088, 1259093, 1259097, 1259105, 1259157,
+                         1259171, 1259210, 1259212, 1259214, 1259218, 1259219,
+                         1259221, 1259223, 1259235, 1259257, 1259268, 1259271,
+                         1259280, 1259285, 1259290, 1259297, 1259305, 1259307,
+                         1259308, 1259309, 1259310, 1259311, 1259312, 1259313,
+                         1259314, 1259315, 1259321, 1259322, 1259325, 1259328,
+                         1259329, 1259331, 1259337, 1259342, 1259343, 1259347,
+                         1259349, 1259350, 1259366, 1259438, 1259452, 1259454,
+                         1259473, 1259632, 1259638, 1259640]),
+            "1337": set([1050298, 1256518, 1256520]),
+            "c1": set([5655, 5875, 5877, 6221, 6243, 6263, 6544, 6604, 6620,
+                       6978, 9150, 9273, 9279, 9283, 9670, 10363, 10375,
+                       10377, 10383, 10396, 10418, 10422, 10426, 10443, 10448,
+                       10474, 10483, 10484, 10492, 10493, 10494, 10495,
+                       10518])
+        }
+
+    def _register_expected_sessions(self) -> None:
+        """Register the expected set of fully-fleshed-out session objects"""
+        self.register_mock_session(
+                session_id="1267",
+                uid=1002,
+                tty="pts/2",
+                scope="session-1267.scope",
+                pids_and_tunnels={
+                    772211: [],
+                    952570: [],
+                    952581: [],
+                    952582: [],
+                    952591: [],
+                    952592: [],
+                    952644: [],
+                    952649: [],
+                    952652: [],
+                    952656: [],
+                    952663: [],
+                    952715: [],
+                    952727: [],
+                    952766: [],
+                    952768: [],
+                    952770: [],
+                    952774: [],
+                    952775: [],
+                    952777: [],
+                    952779: [],
+                    952805: [],
+                    952817: [],
+                    952819: [],
+                    952837: [],
+                    952841: [],
+                    952853: [],
+                    952861: [],
+                    952868: [],
+                    952875: [],
+                    952885: [],
+                    952888: [],
+                    952889: [],
+                    952890: [],
+                    952891: [],
+                    952892: [],
+                    952893: [],
+                    952894: [],
+                    952895: [],
+                    952898: [],
+                    952904: [],
+                    952905: [],
+                    952907: [],
+                    952909: [],
+                    952910: [],
+                    952911: [],
+                    952913: [],
+                    952919: [],
+                    952921: [],
+                    952935: [],
+                    952941: [],
+                    952959: [],
+                    953009: [],
+                    953028: [],
+                    953050: [],
+                    953201: [],
+                    953207: [],
+                    953209: [],
+                    953210: [],
+                    953212: [],
+                    953217: []
+                }
+        )
+
+        self.register_mock_session(
+                session_id="1301",
+                uid=0,
+                tty="pts/1",
+                scope="session-1301.scope",
+                pids_and_tunnels={
+                    1258996: [],
+                    1259009: [],
+                    1259010: [],
+                    1259026: [],
+                    1259028: [],
+                    1259067: [],
+                    1259083: [],
+                    1259088: [],
+                    1259093: [],
+                    1259097: [],
+                    1259105: [],
+                    1259157: [],
+                    1259171: [],
+                    1259210: [],
+                    1259212: [],
+                    1259214: [],
+                    1259218: [],
+                    1259219: [],
+                    1259221: [],
+                    1259223: [],
+                    1259235: [],
+                    1259257: [],
+                    1259268: [],
+                    1259271: [],
+                    1259280: [],
+                    1259285: [],
+                    1259290: [],
+                    1259297: [],
+                    1259305: [],
+                    1259307: [],
+                    1259308: [],
+                    1259309: [],
+                    1259310: [],
+                    1259311: [],
+                    1259312: [],
+                    1259313: [],
+                    1259314: [],
+                    1259315: [],
+                    1259321: [],
+                    1259322: [],
+                    1259325: [],
+                    1259328: [],
+                    1259329: [],
+                    1259331: [],
+                    1259337: [],
+                    1259342: [],
+                    1259343: [],
+                    1259347: [],
+                    1259349: [],
+                    1259350: [],
+                    1259366: [],
+                    1259438: [],
+                    1259452: [],
+                    1259454: [],
+                    1259473: [],
+                    1259632: [],
+                    1259638: [],
+                    1259640: []
+                }
+        )
+
+        self.register_mock_session(
+                session_id="1337",
+                uid=1002,
+                tty="pts/0",
+                scope="session-1337.scope",
+                pids_and_tunnels={
+                    1050298: [],
+                    # str("1267") is a session identifier for the VNC session
+                    1256518: [str("1267")],
+                    1256520: [],
+                }
+        )
+
+        self.register_mock_session(
+                session_id="c1",
+                uid=42,
+                tty="tty1",
+                scope="session-c1.scope",
+                pids_and_tunnels={
+                    5655: [],
+                    5875: [],
+                    5877: [],
+                    6221: [],
+                    6243: [],
+                    6263: [],
+                    6544: [],
+                    6604: [],
+                    6620: [],
+                    6978: [],
+                    9150: [],
+                    9273: [],
+                    9279: [],
+                    9283: [],
+                    9670: [],
+                    10363: [],
+                    10375: [],
+                    10377: [],
+                    10383: [],
+                    10396: [],
+                    10418: [],
+                    10422: [],
+                    10426: [],
+                    10443: [],
+                    10448: [],
+                    10474: [],
+                    10483: [],
+                    10484: [],
+                    10492: [],
+                    10493: [],
+                    10494: [],
+                    10495: [],
+                    10518: [],
+                }
+        )

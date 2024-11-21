@@ -4,14 +4,17 @@
 from itertools import product
 from typing import List, NamedTuple, Optional, Union
 
-from . import logind, ps, ss, tty
+import logind_idle_session_extras.logind
+import logind_idle_session_extras.ps
+import logind_idle_session_extras.ss
+import logind_idle_session_extras.tty
 
 
 class SessionProcess(NamedTuple):
     """Representation of a Process specifically inside of a Session"""
 
     # Generic Process details for this SessionProcess
-    process: ps.Process
+    process: logind_idle_session_extras.ps.Process
 
     # Whether this process has been marked as the "Leader" of its session
     # (i.e., whether Process.pid == Session.leader_pid)
@@ -19,20 +22,34 @@ class SessionProcess(NamedTuple):
 
     # A (possibly empty) list of backend processes that this particular
     # process has tunneled back into *OR* the Sessions that they are part of
-    tunnels: List[Union[ps.Process, 'Session']]
+    tunnels: List[Union[logind_idle_session_extras.ps.Process, 'Session']]
+
+    def __eq__(self, other):
+        if not hasattr(other, 'process'):
+            return False
+        if not hasattr(other.process, 'pid'):
+            return False
+        return self.process.pid == other.process.pid
 
 
 class Session(NamedTuple):
     """Representation of an individual Session, combining various sources"""
 
     # Backend logind session object for this Session
-    session: logind.Session
+    session: logind_idle_session_extras.logind.Session
 
     # The TTY or PTY which is assigned to this session (or None)
-    tty: Optional[tty.TTY]
+    tty: Optional[logind_idle_session_extras.tty.TTY]
 
     # Collection of Process objects belonging to this Session
     processes: List[SessionProcess]
+
+    def __eq__(self, other):
+        if not hasattr(other, 'session'):
+            return False
+        if not hasattr(other.session, 'session_id'):
+            return False
+        return self.session.session_id == other.session.session_id
 
     def terminate(self):
         """Terminate the backend logind session and its processes"""
@@ -80,16 +97,18 @@ class Session(NamedTuple):
 def load_sessions() -> List[Session]:
     """Construct an abstract Session/Process tree from system observations"""
 
-    logind_sessions = logind.get_all_sessions()
-    loopback_connections = ss.find_loopback_connections()
+    logind_sessions = logind_idle_session_extras.logind.get_all_sessions()
+    loopback_connections = logind_idle_session_extras.ss.find_loopback_connections()
 
     # Constructing the tree involves many layers of nesting, necessarily
     # pylint: disable=too-many-nested-blocks
     sessions: List[Session] = []
     for logind_session in logind_sessions:
         session_processes: List[SessionProcess] = []
-        for process in ps.processes_in_scope_path(logind_session.scope_path):
-            tunnels: List[Union[ps.Process, Session]] = []
+        for process in logind_idle_session_extras.ps.processes_in_scope_path(
+                logind_session.scope_path):
+            tunnels: List[Union[logind_idle_session_extras.ps.Process,
+                                Session]] = []
 
             # Associate Processes thru loopback connections to other Processes
             for loopback_connection in loopback_connections:
@@ -105,9 +124,9 @@ def load_sessions() -> List[Session]:
                     tunnels=tunnels
             ))
 
-        session_tty: Optional[tty.TTY] = None
+        session_tty: Optional[logind_idle_session_extras.tty.TTY] = None
         if logind_session.tty != "":
-            session_tty = tty.TTY(logind_session.tty)
+            session_tty = logind_idle_session_extras.tty.TTY(logind_session.tty)
 
         sessions.append(Session(
                 session=logind_session,
@@ -120,7 +139,7 @@ def load_sessions() -> List[Session]:
         for process_a, process_b in product(session_a.processes,
                                             session_b.processes):
             for index, backend_process_a in enumerate(process_a.tunnels):
-                if backend_process_a == process_b:
+                if backend_process_a == process_b.process:
                     process_a.tunnels[index] = session_b
 
     return sessions

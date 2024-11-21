@@ -1,8 +1,9 @@
 """Common logic for the main loop, shared across all scenarios"""
 
 
+import datetime
 from ipaddress import IPv4Address, IPv6Address
-from typing import List, Mapping, Set, Union
+from typing import Callable, List, Mapping, Optional, Set, Union
 from unittest import TestCase, TestSuite
 from unittest.mock import Mock, patch
 
@@ -201,16 +202,16 @@ class MainLoopTestCase(TestCase):
 
         tty_patcher = patch(
                 'logind_idle_session_extras.tty.TTY',
-                new=Mock(side_effect=MainLoopTestCase._mock_tty)
+                new=Mock(side_effect=MainLoopTestCase._mock_tty())
         )
         tty_patcher.start()
         self.addCleanup(tty_patcher.stop)
 
-    def test_parse_logind_sessions(self):
-        """Ensure that the logind sessions are transformed appropriately"""
-
         self._register_expected_sessions()
         self._resolve_tunneled_sessions()
+
+    def test_parse_logind_sessions(self):
+        """Ensure that the logind sessions are transformed appropriately"""
 
         expected_sessions = self._mocked_session_objects
         actual_sessions = logind_idle_session_extras.main.load_sessions()
@@ -249,6 +250,25 @@ class MainLoopTestCase(TestCase):
         self.assertEqual(len(matched_pairs), len(expected_sessions))
         self.assertEqual(len(matched_pairs), len(actual_sessions))
 
+    def test_check_time_discrepancy(self):
+        """Ensure that an old atime is updated to match a new mtime"""
+
+        for expected_to_call, second_field in [(True, 8), (False, 6)]:
+            with self.subTest(expected_to_call=expected_to_call):
+                modified_mock_tty = MainLoopTestCase._mock_tty(
+                        atime=datetime.datetime(2024, 1, 2, 3, 4, 5, 6),
+                        mtime=datetime.datetime(2024, 1, 2, 3, 4, 5,
+                                                second_field)
+                )
+
+                with patch('logind_idle_session_extras.tty.TTY',
+                           new=modified_mock_tty):
+                    actual_sessions = logind_idle_session_extras.main.load_sessions()
+                    actual_diff = logind_idle_session_extras.main.check_time_discrepancy(
+                            actual_sessions[0]
+                    )
+                    self.assertEqual(expected_to_call, actual_diff)
+
     #
     # Internal methods used by test cases -- these should not be overridden
     #
@@ -280,11 +300,21 @@ class MainLoopTestCase(TestCase):
         return me.session.session_id == other.session.session_id
 
     @staticmethod
-    def _mock_tty(tty_name: str) -> Mock:
-        """Create a mocked main.TTY object with just its name"""
-        tty = Mock()
-        tty.name = tty_name
-        return tty
+    def _mock_tty(atime: Optional[datetime.datetime] = None,
+                  mtime: Optional[datetime.datetime] = None) -> Callable[[str], Mock]:
+        """Factory function to create tty.TTY constructor functions"""
+
+        def _inner_mock_tty(tty_name: str) -> Mock:
+            tty = Mock()
+            tty.name = tty_name
+            if atime is not None:
+                tty.atime = atime
+            if mtime is not None:
+                tty.mtime = mtime
+            tty.touch_times = Mock()
+            return tty
+
+        return _inner_mock_tty
 
     def _mock_processes_in_scope_path(self, scope_path: str) -> List[Mock]:
         """Obtain a mocked set of process objects for a given scope path"""

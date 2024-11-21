@@ -56,26 +56,26 @@ class Session(NamedTuple):
         self.session.terminate()
 
 
-#def _check_time_discrepancy(session: Session) -> bool:
-#    """Check whether the TTY's atime is at least as new as the mtime
-#
-#    As indicated in the README, there are multiple kinds of "user activity" on
-#    the command-line. The systemd-logind logic for idle timeouts checks the
-#    atime on the TTY/PTY. User keyboard activity updates both the mtime and
-#    atime. On the other hand, program output _only_ updates the mtime.
-#
-#    This rule ensures that the atime is touched to match the mtime, when the
-#    atime is older than the mtime. In doing so, program output will ALSO re-up
-#    the idle timeout.
-#    """
-#
-#    if session.tty is not None:
-#        if session.tty.atime < session.tty.mtime:
-#            return True
-#    return False
-#
-#
-#def _check_ssh_session_tunnel(session: Session) -> bool:
+def check_time_discrepancy(session: Session) -> bool:
+    """Check whether the TTY's atime is at least as new as the mtime
+
+    As indicated in the README, there are multiple kinds of "user activity" on
+    the command-line. The systemd-logind logic for idle timeouts checks the
+    atime on the TTY/PTY. User keyboard activity updates both the mtime and
+    atime. On the other hand, program output _only_ updates the mtime.
+
+    This rule ensures that the atime is touched to match the mtime, when the
+    atime is older than the mtime. In doing so, program output will ALSO re-up
+    the idle timeout.
+    """
+
+    if session.tty is not None:
+        if session.tty.atime < session.tty.mtime:
+            return True
+    return False
+
+
+#def check_ssh_session_tunnel(session: Session) -> bool:
 #    """Check whether an SSH session is tunneled to a backend session
 #
 #    This would be something like `ssh -L 5901:localhost:5901 <host>`. The Rule
@@ -90,7 +90,7 @@ class Session(NamedTuple):
 #        for tunnel_backend in session_processes.tunnels:
 #            if isinstance(tunnel_backend, Session):
 #                pass
-
+#
 
 # Constructing the tree involves many local variables, necessarily
 # pylint: disable-next=too-many-locals

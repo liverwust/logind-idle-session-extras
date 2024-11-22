@@ -49,3 +49,9 @@ def retrieve_idle_time_ms(display: str,
     except Xlib.error.ConnectionClosedError as err:
         raise SessionParseError(f'Could not maintain a connection to the X11 '
                                 f'display identified by "{display}"') from err
+
+    except AttributeError as err:
+        raise SessionParseError(f'Cannot access attributes from X11 server '
+                                f'responses associated with display '
+                                f'"{display}", probably due to a broken or '
+                                f'erroneous connection') from err

@@ -4,8 +4,8 @@
 from unittest import TestCase
 from unittest.mock import Mock, patch
 
-from logind_idle_session_extras.exception import SessionParseError
-import logind_idle_session_extras.getent
+from stop_idle_sessions.exception import SessionParseError
+import stop_idle_sessions.getent
 
 
 class UidToUsernameTestCase(TestCase):
@@ -20,7 +20,7 @@ class UidToUsernameTestCase(TestCase):
 
         with patch('subprocess.run',
                    new=Mock(return_value=completed_process)) as mock_run:
-            actual_user = logind_idle_session_extras.getent.uid_to_username(1000)
+            actual_user = stop_idle_sessions.getent.uid_to_username(1000)
             self.assertEqual('auser', actual_user)
             mock_run.assert_called()
 
@@ -34,5 +34,5 @@ class UidToUsernameTestCase(TestCase):
         with patch('subprocess.run',
                    new=Mock(return_value=completed_process)) as mock_run:
             with self.assertRaises(SessionParseError):
-                logind_idle_session_extras.getent.uid_to_username(1000)
+                stop_idle_sessions.getent.uid_to_username(1000)
             mock_run.assert_called()

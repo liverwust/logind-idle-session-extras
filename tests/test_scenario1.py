@@ -12,9 +12,9 @@ from textwrap import dedent
 from typing import Any, List, Mapping, Set, Tuple, Union
 from unittest.mock import Mock
 
-import logind_idle_session_extras.main
-import logind_idle_session_extras.ps
-import logind_idle_session_extras.ss
+import stop_idle_sessions.main
+import stop_idle_sessions.ps
+import stop_idle_sessions.ss
 
 from . import test_logind, test_main, test_ps, test_ss
 
@@ -183,248 +183,248 @@ class Scenario1CgroupPidsTestCase(test_ps.CgroupPidsTestCase):
             953217: "/usr/libexec/tracker-store"
         }
 
-    def _expected_process_objects(self) -> List[logind_idle_session_extras.ps.Process]:
+    def _expected_process_objects(self) -> List[stop_idle_sessions.ps.Process]:
         """Expected set of processes to be parsed out of the cgroup sysfs"""
         # Yes, there are some very long lines here!
         # pylint: disable=line-too-long
         return [
-            logind_idle_session_extras.ps.Process(
+            stop_idle_sessions.ps.Process(
                     pid=772211,
                     cmdline="/usr/libexec/gvfsd-metadata"
             ),
-            logind_idle_session_extras.ps.Process(
+            stop_idle_sessions.ps.Process(
                     pid=952570,
                     cmdline="/usr/bin/Xvnc :1 -auth /u/wk/auser/.Xauthority -desktop computer:1 (auser) -fp catalogue:/etc/X11/fontpath.d -geometry 1024x768 -pn -rfbauth /u/wk/auser/.vnc/passwd -rfbport 5901 -localhost"
             ),
-            logind_idle_session_extras.ps.Process(
+            stop_idle_sessions.ps.Process(
                     pid=952581,
                     cmdline="/bin/sh /u/wk/auser/.vnc/xstartup"
             ),
-            logind_idle_session_extras.ps.Process(
+            stop_idle_sessions.ps.Process(
                     pid=952582,
                     cmdline="/usr/libexec/gnome-session-binary"
             ),
-            logind_idle_session_extras.ps.Process(
+            stop_idle_sessions.ps.Process(
                     pid=952591,
                     cmdline="dbus-launch --sh-syntax --exit-with-session"
             ),
-            logind_idle_session_extras.ps.Process(
+            stop_idle_sessions.ps.Process(
                     pid=952592,
                     cmdline="/usr/bin/dbus-daemon --syslog --fork --print-pid 5 --print-address 7 --session"
             ),
-            logind_idle_session_extras.ps.Process(
+            stop_idle_sessions.ps.Process(
                     pid=952644,
                     cmdline="/usr/libexec/at-spi-bus-launcher"
             ),
-            logind_idle_session_extras.ps.Process(
+            stop_idle_sessions.ps.Process(
                     pid=952649,
                     cmdline="/usr/bin/dbus-daemon --config-file=/usr/share/defaults/at-spi2/accessibility.conf --nofork --print-address 3"
             ),
-            logind_idle_session_extras.ps.Process(
+            stop_idle_sessions.ps.Process(
                     pid=952652,
                     cmdline="/usr/libexec/at-spi2-registryd --use-gnome-session"
             ),
-            logind_idle_session_extras.ps.Process(
+            stop_idle_sessions.ps.Process(
                     pid=952656,
                     cmdline="/usr/libexec/gvfsd"
             ),
-            logind_idle_session_extras.ps.Process(
+            stop_idle_sessions.ps.Process(
                     pid=952663,
                     cmdline="/usr/libexec/gvfsd-fuse /run/user/1002/gvfs -f -o big_writes"
             ),
-            logind_idle_session_extras.ps.Process(
+            stop_idle_sessions.ps.Process(
                     pid=952715,
                     cmdline="/usr/bin/gnome-keyring-daemon --start --components=pkcs11"
             ),
-            logind_idle_session_extras.ps.Process(
+            stop_idle_sessions.ps.Process(
                     pid=952727,
                     cmdline="/usr/bin/gnome-shell"
             ),
-            logind_idle_session_extras.ps.Process(
+            stop_idle_sessions.ps.Process(
                     pid=952766,
                     cmdline="ibus-daemon --xim --panel disable"
             ),
-            logind_idle_session_extras.ps.Process(
+            stop_idle_sessions.ps.Process(
                     pid=952768,
                     cmdline="/usr/libexec/xdg-permission-store"
             ),
-            logind_idle_session_extras.ps.Process(
+            stop_idle_sessions.ps.Process(
                     pid=952770,
                     cmdline="/usr/libexec/gnome-shell-calendar-server"
             ),
-            logind_idle_session_extras.ps.Process(
+            stop_idle_sessions.ps.Process(
                     pid=952774,
                     cmdline="/usr/libexec/ibus-dconf"
             ),
-            logind_idle_session_extras.ps.Process(
+            stop_idle_sessions.ps.Process(
                     pid=952775,
                     cmdline="/usr/libexec/ibus-extension-gtk3"
             ),
-            logind_idle_session_extras.ps.Process(
+            stop_idle_sessions.ps.Process(
                     pid=952777,
                     cmdline="/usr/libexec/ibus-x11 --kill-daemon"
             ),
-            logind_idle_session_extras.ps.Process(
+            stop_idle_sessions.ps.Process(
                     pid=952779,
                     cmdline="/usr/libexec/ibus-portal"
             ),
-            logind_idle_session_extras.ps.Process(
+            stop_idle_sessions.ps.Process(
                     pid=952805,
                     cmdline="/usr/libexec/evolution-source-registry"
             ),
-            logind_idle_session_extras.ps.Process(
+            stop_idle_sessions.ps.Process(
                     pid=952817,
                     cmdline="/usr/libexec/goa-daemon"
             ),
-            logind_idle_session_extras.ps.Process(
+            stop_idle_sessions.ps.Process(
                     pid=952819,
                     cmdline="/usr/libexec/dconf-service"
             ),
-            logind_idle_session_extras.ps.Process(
+            stop_idle_sessions.ps.Process(
                     pid=952837,
                     cmdline="/usr/libexec/goa-identity-service"
             ),
-            logind_idle_session_extras.ps.Process(
+            stop_idle_sessions.ps.Process(
                     pid=952841,
                     cmdline="/usr/libexec/gvfs-udisks2-volume-monitor"
             ),
-            logind_idle_session_extras.ps.Process(
+            stop_idle_sessions.ps.Process(
                     pid=952853,
                     cmdline="/usr/libexec/gvfs-mtp-volume-monitor"
             ),
-            logind_idle_session_extras.ps.Process(
+            stop_idle_sessions.ps.Process(
                     pid=952861,
                     cmdline="/usr/libexec/gvfs-goa-volume-monitor"
             ),
-            logind_idle_session_extras.ps.Process(
+            stop_idle_sessions.ps.Process(
                     pid=952868,
                     cmdline="/usr/libexec/gvfs-gphoto2-volume-monitor"
             ),
-            logind_idle_session_extras.ps.Process(
+            stop_idle_sessions.ps.Process(
                     pid=952875,
                     cmdline="/usr/libexec/gvfs-afc-volume-monitor"
             ),
-            logind_idle_session_extras.ps.Process(
+            stop_idle_sessions.ps.Process(
                     pid=952885,
                     cmdline="/usr/libexec/gsd-power"
             ),
-            logind_idle_session_extras.ps.Process(
+            stop_idle_sessions.ps.Process(
                     pid=952888,
                     cmdline="/usr/libexec/gsd-print-notifications"
             ),
-            logind_idle_session_extras.ps.Process(
+            stop_idle_sessions.ps.Process(
                     pid=952889,
                     cmdline="/usr/libexec/gsd-rfkill"
             ),
-            logind_idle_session_extras.ps.Process(
+            stop_idle_sessions.ps.Process(
                     pid=952890,
                     cmdline="/usr/libexec/gsd-screensaver-proxy"
             ),
-            logind_idle_session_extras.ps.Process(
+            stop_idle_sessions.ps.Process(
                     pid=952891,
                     cmdline="/usr/libexec/gsd-sharing"
             ),
-            logind_idle_session_extras.ps.Process(
+            stop_idle_sessions.ps.Process(
                     pid=952892,
                     cmdline="/usr/libexec/gsd-smartcard"
             ),
-            logind_idle_session_extras.ps.Process(
+            stop_idle_sessions.ps.Process(
                     pid=952893,
                     cmdline="/usr/libexec/gsd-sound"
             ),
-            logind_idle_session_extras.ps.Process(
+            stop_idle_sessions.ps.Process(
                     pid=952894,
                     cmdline="/usr/libexec/gsd-xsettings"
             ),
-            logind_idle_session_extras.ps.Process(
+            stop_idle_sessions.ps.Process(
                     pid=952895,
                     cmdline="/usr/libexec/gsd-subman"
             ),
-            logind_idle_session_extras.ps.Process(
+            stop_idle_sessions.ps.Process(
                     pid=952898,
                     cmdline="/usr/libexec/gsd-wacom"
             ),
-            logind_idle_session_extras.ps.Process(
+            stop_idle_sessions.ps.Process(
                     pid=952904,
                     cmdline="/usr/libexec/gsd-account"
             ),
-            logind_idle_session_extras.ps.Process(
+            stop_idle_sessions.ps.Process(
                     pid=952905,
                     cmdline="/usr/libexec/gsd-clipboard"
             ),
-            logind_idle_session_extras.ps.Process(
+            stop_idle_sessions.ps.Process(
                     pid=952907,
                     cmdline="/usr/libexec/gsd-a11y-settings"
             ),
-            logind_idle_session_extras.ps.Process(
+            stop_idle_sessions.ps.Process(
                     pid=952909,
                     cmdline="/usr/libexec/gsd-datetime"
             ),
-            logind_idle_session_extras.ps.Process(
+            stop_idle_sessions.ps.Process(
                     pid=952910,
                     cmdline="/usr/libexec/evolution-calendar-factory"
             ),
-            logind_idle_session_extras.ps.Process(
+            stop_idle_sessions.ps.Process(
                     pid=952911,
                     cmdline="/usr/libexec/gsd-color"
             ),
-            logind_idle_session_extras.ps.Process(
+            stop_idle_sessions.ps.Process(
                     pid=952913,
                     cmdline="/usr/libexec/gsd-keyboard"
             ),
-            logind_idle_session_extras.ps.Process(
+            stop_idle_sessions.ps.Process(
                     pid=952919,
                     cmdline="/usr/libexec/gsd-housekeeping"
             ),
-            logind_idle_session_extras.ps.Process(
+            stop_idle_sessions.ps.Process(
                     pid=952921,
                     cmdline="/usr/libexec/gsd-mouse"
             ),
-            logind_idle_session_extras.ps.Process(
+            stop_idle_sessions.ps.Process(
                     pid=952935,
                     cmdline="/usr/libexec/gsd-media-keys"
             ),
-            logind_idle_session_extras.ps.Process(
+            stop_idle_sessions.ps.Process(
                     pid=952941,
                     cmdline="/usr/libexec/ibus-engine-simple"
             ),
-            logind_idle_session_extras.ps.Process(
+            stop_idle_sessions.ps.Process(
                     pid=952959,
                     cmdline="/usr/libexec/gsd-printer"
             ),
-            logind_idle_session_extras.ps.Process(
+            stop_idle_sessions.ps.Process(
                     pid=953009,
                     cmdline="/usr/libexec/evolution-calendar-factory-subprocess --factory all --bus-name org.gnome.evolution.dataserver.Subprocess.Backend.Calendarx952910x2 --own-path /org/gnome/evolution/dataserver/Subprocess/Backend/Calendar/952910/2"
             ),
-            logind_idle_session_extras.ps.Process(
+            stop_idle_sessions.ps.Process(
                     pid=953028,
                     cmdline="/usr/libexec/evolution-addressbook-factory"
             ),
-            logind_idle_session_extras.ps.Process(
+            stop_idle_sessions.ps.Process(
                     pid=953050,
                     cmdline="/usr/libexec/evolution-addressbook-factory-subprocess --factory all --bus-name org.gnome.evolution.dataserver.Subprocess.Backend.AddressBookx953028x2 --own-path /org/gnome/evolution/dataserver/Subprocess/Backend/AddressBook/953028/2"
             ),
-            logind_idle_session_extras.ps.Process(
+            stop_idle_sessions.ps.Process(
                     pid=953201,
                     cmdline="/usr/libexec/gsd-disk-utility-notify"
             ),
-            logind_idle_session_extras.ps.Process(
+            stop_idle_sessions.ps.Process(
                     pid=953207,
                     cmdline="/usr/bin/gnome-software --gapplication-service"
             ),
-            logind_idle_session_extras.ps.Process(
+            stop_idle_sessions.ps.Process(
                     pid=953209,
                     cmdline="/usr/libexec/evolution/evolution-alarm-notify"
             ),
-            logind_idle_session_extras.ps.Process(
+            stop_idle_sessions.ps.Process(
                     pid=953210,
                     cmdline="/usr/libexec/tracker-miner-fs"
             ),
-            logind_idle_session_extras.ps.Process(
+            stop_idle_sessions.ps.Process(
                     pid=953212,
                     cmdline="/usr/libexec/tracker-miner-apps"
             ),
-            logind_idle_session_extras.ps.Process(
+            stop_idle_sessions.ps.Process(
                     pid=953217,
                     cmdline="/usr/libexec/tracker-store"
             )
@@ -493,22 +493,22 @@ class Scenario1LoopbackConnectionTestCase(test_ss.LoopbackConnectionTestCase):
                 (ip_address('127.0.0.1'), 49688)
         ])
 
-    def _expected_connections(self) -> List[logind_idle_session_extras.ss.LoopbackConnection]:
+    def _expected_connections(self) -> List[stop_idle_sessions.ss.LoopbackConnection]:
         """Expected set of loopback connections identified from these conns"""
         return [
-            logind_idle_session_extras.ss.LoopbackConnection(
-                    client=logind_idle_session_extras.ss.Socket(
+            stop_idle_sessions.ss.LoopbackConnection(
+                    client=stop_idle_sessions.ss.Socket(
                         addr=ip_address('127.0.0.1'),
                         port=49688,
-                        processes=[logind_idle_session_extras.ps.Process(
+                        processes=[stop_idle_sessions.ps.Process(
                             pid=1256518,
                             cmdline=""
                         )]
                     ),
-                    server=logind_idle_session_extras.ss.Socket(
+                    server=stop_idle_sessions.ss.Socket(
                         addr=ip_address('127.0.0.1'),
                         port=5901,
-                        processes=[logind_idle_session_extras.ps.Process(
+                        processes=[stop_idle_sessions.ps.Process(
                             pid=952570,
                             cmdline=""
                         )]

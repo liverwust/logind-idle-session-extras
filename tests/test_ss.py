@@ -7,9 +7,9 @@ from typing import List, Set, Tuple, Union
 from unittest import TestCase, TestSuite
 from unittest.mock import Mock, patch
 
-from logind_idle_session_extras.list_set import compare_list_sets
-import logind_idle_session_extras.ps
-import logind_idle_session_extras.ss
+from stop_idle_sessions.list_set import compare_list_sets
+import stop_idle_sessions.ps
+import stop_idle_sessions.ss
 
 
 class LoopbackConnectionTestCase(TestCase):
@@ -37,7 +37,7 @@ class LoopbackConnectionTestCase(TestCase):
         """Subclasses should override this method"""
         raise NotImplementedError('_expected_peer_pairs')
 
-    def _expected_connections(self) -> List[logind_idle_session_extras.ss.LoopbackConnection]:
+    def _expected_connections(self) -> List[stop_idle_sessions.ss.LoopbackConnection]:
         """Subclasses should override this method"""
         raise NotImplementedError('_expected_loopback_connections')
 
@@ -64,7 +64,7 @@ class LoopbackConnectionTestCase(TestCase):
         sure everything is handled properly (without mocking internals).
         """
 
-        invoke = logind_idle_session_extras.ss.SSInvocation()
+        invoke = stop_idle_sessions.ss.SSInvocation()
         invoke.run()
 
         expected_listening_ports = self._expected_listening_ports()

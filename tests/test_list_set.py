@@ -3,7 +3,7 @@
 
 from unittest import TestCase
 
-from logind_idle_session_extras import list_set
+from stop_idle_sessions import list_set
 
 
 class CompareListSetsTestCase(TestCase):

@@ -5,7 +5,7 @@ import datetime
 from unittest import TestCase
 from unittest.mock import Mock, patch
 
-import logind_idle_session_extras.tty
+import stop_idle_sessions.tty
 
 
 class TtyUpdateTimeTestCase(TestCase):
@@ -18,7 +18,7 @@ class TtyUpdateTimeTestCase(TestCase):
         )
 
         mock_os_initialize_times_patcher = patch(
-                'logind_idle_session_extras.tty.TTY._os_initialize_times',
+                'stop_idle_sessions.tty.TTY._os_initialize_times',
                 new=self._mock_os_initialize_times
         )
         mock_os_initialize_times_patcher.start()
@@ -27,7 +27,7 @@ class TtyUpdateTimeTestCase(TestCase):
         self._mock_os_touch_times = Mock()
 
         mock_os_initialize_times_patcher = patch(
-                'logind_idle_session_extras.tty.TTY._os_touch_times',
+                'stop_idle_sessions.tty.TTY._os_touch_times',
                 new=self._mock_os_touch_times
         )
         mock_os_initialize_times_patcher.start()
@@ -51,7 +51,7 @@ class TtyUpdateTimeTestCase(TestCase):
     def test_internal_methods_called(self):
         """Ensure that the appropriate internal methods are called by TTY"""
 
-        tty_obj = logind_idle_session_extras.tty.TTY('pts/4')
+        tty_obj = stop_idle_sessions.tty.TTY('pts/4')
         self.assertEqual(tty_obj.atime, self._mock_old_atime)
         self.assertEqual(tty_obj.mtime, self._mock_old_mtime)
 

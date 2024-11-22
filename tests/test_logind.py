@@ -7,8 +7,8 @@ from typing import Any, List, Mapping
 from unittest import TestCase, TestSuite
 from unittest.mock import ANY, Mock, patch
 
-from logind_idle_session_extras.list_set import compare_list_sets
-import logind_idle_session_extras.logind
+from stop_idle_sessions.list_set import compare_list_sets
+import stop_idle_sessions.logind
 
 
 _SESSION_NODE_RE = r'^/org/freedesktop/login1/session/([^/]+)$'
@@ -42,7 +42,7 @@ class LogindTestCase(TestCase):
         self._sessions = {}
 
         self._mocked_gio = self._mock_gio(self._mock_gio_results_spec())
-        mock_gio_obj_patch = patch('logind_idle_session_extras.logind.Gio',
+        mock_gio_obj_patch = patch('stop_idle_sessions.logind.Gio',
                                    new=self._mocked_gio)
         mock_gio_obj_patch.start()
         self.addCleanup(mock_gio_obj_patch.stop)
@@ -50,7 +50,7 @@ class LogindTestCase(TestCase):
     def test_logind_interface_parsed_objects(self):
         """Ensure that objects are appropriately parsed from the logind API"""
 
-        sessions = list(logind_idle_session_extras.logind.get_all_sessions())
+        sessions = list(stop_idle_sessions.logind.get_all_sessions())
         expected_logind_sessions = self._expected_logind_sessions()
 
         attrs = set()

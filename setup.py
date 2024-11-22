@@ -7,7 +7,7 @@ this_directory = Path(__file__).parent
 long_description = (this_directory / "README.md").read_text()
 
 setup(
-    name="logind-idle-session-extras",
+    name="stop-idle-sessions",
     version="0.5.0",
     description=("Refresh systemd-logind idle timeouts based on supplemental "
                  "user activity (e.g., VNC tunnel)"),
@@ -15,8 +15,8 @@ setup(
     long_description_content_type='text/markdown',
     author="Louis Wust",
     author_email="louiswust@fastmail.fm",
-    url="https://github.com/liverwust/logind-idle-session-extras",
-    packages=["logind_idle_session_extras"],
+    url="https://github.com/liverwust/stop-idle-sessions",
+    packages=["stop_idle_sessions"],
     classifiers=[
         "Development Status :: 3 - Alpha",
         "Environment :: No Input/Output (Daemon)",
@@ -42,7 +42,7 @@ setup(
     ],
     entry_points={
         'console_scripts': [
-            'logind-idle-session-extras = logind_idle_session_extras.main:iterate'
+            'stop-idle-sessions = stop_idle_sessions.main:iterate'
         ]
     },
     python_requires=">= 3.6"

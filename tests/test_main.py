@@ -7,8 +7,8 @@ from typing import Callable, List, Mapping, Optional, Set, Union
 from unittest import TestCase, TestSuite
 from unittest.mock import Mock, patch
 
-from logind_idle_session_extras.list_set import matchup_list_sets
-import logind_idle_session_extras.main
+from stop_idle_sessions.list_set import matchup_list_sets
+import stop_idle_sessions.main
 
 
 class MainLoopTestCase(TestCase):
@@ -172,7 +172,7 @@ class MainLoopTestCase(TestCase):
         )
 
         get_logind_sessions_patcher = patch(
-                'logind_idle_session_extras.logind.get_all_sessions',
+                'stop_idle_sessions.logind.get_all_sessions',
                 new=self._mocked_get_logind_sessions
         )
         get_logind_sessions_patcher.start()
@@ -183,7 +183,7 @@ class MainLoopTestCase(TestCase):
         )
 
         processes_in_scope_path_patcher = patch(
-                'logind_idle_session_extras.ps.processes_in_scope_path',
+                'stop_idle_sessions.ps.processes_in_scope_path',
                 new=self._mocked_processes_in_scope_path
         )
         processes_in_scope_path_patcher.start()
@@ -194,21 +194,21 @@ class MainLoopTestCase(TestCase):
         )
 
         find_loopback_connections_patcher = patch(
-                'logind_idle_session_extras.ss.find_loopback_connections',
+                'stop_idle_sessions.ss.find_loopback_connections',
                 new=self._mocked_find_loopback_connections
         )
         find_loopback_connections_patcher.start()
         self.addCleanup(find_loopback_connections_patcher.stop)
 
         tty_patcher = patch(
-                'logind_idle_session_extras.tty.TTY',
+                'stop_idle_sessions.tty.TTY',
                 new=Mock(side_effect=MainLoopTestCase._mock_tty())
         )
         tty_patcher.start()
         self.addCleanup(tty_patcher.stop)
 
         null_username_resolver_patcher = patch(
-                'logind_idle_session_extras.getent.uid_to_username',
+                'stop_idle_sessions.getent.uid_to_username',
                 new=Mock(return_value=None)
         )
         null_username_resolver_patcher.start()
@@ -221,7 +221,7 @@ class MainLoopTestCase(TestCase):
         """Ensure that the logind sessions are transformed appropriately"""
 
         expected_sessions = self._mocked_session_objects
-        actual_sessions = logind_idle_session_extras.main.load_sessions()
+        actual_sessions = stop_idle_sessions.main.load_sessions()
 
         matched_pairs = matchup_list_sets(expected_sessions,
                                           actual_sessions)
@@ -273,12 +273,12 @@ class MainLoopTestCase(TestCase):
                         modified_inner_mock_tty
                 )
 
-                with patch('logind_idle_session_extras.tty.TTY',
+                with patch('stop_idle_sessions.tty.TTY',
                            new=modified_mock_tty):
-                    actual_sessions = logind_idle_session_extras.main.load_sessions()
+                    actual_sessions = stop_idle_sessions.main.load_sessions()
 
                     # This test case doesn't care which session it uses
-                    changed = logind_idle_session_extras.main.apply_time_discrepancy_rule(
+                    changed = stop_idle_sessions.main.apply_time_discrepancy_rule(
                             actual_sessions[0]
                     )
                     self.assertEqual(expected_to_change, changed)

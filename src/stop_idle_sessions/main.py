@@ -5,12 +5,12 @@ from itertools import product
 import logging
 from typing import List, Mapping, NamedTuple, Optional, Union
 
-from logind_idle_session_extras.exception import SessionParseError
-import logind_idle_session_extras.getent
-import logind_idle_session_extras.logind
-import logind_idle_session_extras.ps
-import logind_idle_session_extras.ss
-import logind_idle_session_extras.tty
+from stop_idle_sessions.exception import SessionParseError
+import stop_idle_sessions.getent
+import stop_idle_sessions.logind
+import stop_idle_sessions.ps
+import stop_idle_sessions.ss
+import stop_idle_sessions.tty
 
 
 logger = logging.getLogger(__name__)
@@ -20,7 +20,7 @@ class SessionProcess(NamedTuple):
     """Representation of a Process specifically inside of a Session"""
 
     # Generic Process details for this SessionProcess
-    process: logind_idle_session_extras.ps.Process
+    process: stop_idle_sessions.ps.Process
 
     # Whether this process has been marked as the "Leader" of its session
     # (i.e., whether Process.pid == Session.leader_pid)
@@ -28,7 +28,7 @@ class SessionProcess(NamedTuple):
 
     # A (possibly empty) list of backend processes that this particular
     # process has tunneled back into *OR* the Sessions that they are part of
-    tunnels: List[Union[logind_idle_session_extras.ps.Process, 'Session']]
+    tunnels: List[Union[stop_idle_sessions.ps.Process, 'Session']]
 
     def __eq__(self, other):
         if not hasattr(other, 'process'):
@@ -42,10 +42,10 @@ class Session(NamedTuple):
     """Representation of an individual Session, combining various sources"""
 
     # Backend logind session object for this Session
-    session: logind_idle_session_extras.logind.Session
+    session: stop_idle_sessions.logind.Session
 
     # The TTY or PTY which is assigned to this session (or None)
-    tty: Optional[logind_idle_session_extras.tty.TTY]
+    tty: Optional[stop_idle_sessions.tty.TTY]
 
     # The symbolic username corresponding to session.uid
     username: str
@@ -84,8 +84,8 @@ def load_sessions() -> List[Session]:
     """Construct an abstract Session/Process tree from system observations"""
 
     try:
-        logind_sessions = logind_idle_session_extras.logind.get_all_sessions()
-        loopback_connections = logind_idle_session_extras.ss.find_loopback_connections()
+        logind_sessions = stop_idle_sessions.logind.get_all_sessions()
+        loopback_connections = stop_idle_sessions.ss.find_loopback_connections()
     except SessionParseError as err:
         logger.error('Problem while reading session and networking table '
                      'information: %s', err.message)
@@ -99,17 +99,17 @@ def load_sessions() -> List[Session]:
     for logind_session in logind_sessions:
         try:
             if logind_session.uid not in resolved_usernames:
-                username = logind_idle_session_extras.getent.uid_to_username(
+                username = stop_idle_sessions.getent.uid_to_username(
                         logind_session.uid
                 )
                 resolved_usernames[logind_session.uid] = username
 
             session_processes: List[SessionProcess] = []
-            ps_table = logind_idle_session_extras.ps.processes_in_scope_path(
+            ps_table = stop_idle_sessions.ps.processes_in_scope_path(
                     logind_session.scope_path
             )
             for process in ps_table:
-                tunnels: List[Union[logind_idle_session_extras.ps.Process,
+                tunnels: List[Union[stop_idle_sessions.ps.Process,
                                     Session]] = []
 
                 # Associate Processes thru loopback to other Processes
@@ -128,9 +128,9 @@ def load_sessions() -> List[Session]:
                         tunnels=tunnels
                 ))
 
-            session_tty: Optional[logind_idle_session_extras.tty.TTY] = None
+            session_tty: Optional[stop_idle_sessions.tty.TTY] = None
             if logind_session.tty != "":
-                session_tty = logind_idle_session_extras.tty.TTY(
+                session_tty = stop_idle_sessions.tty.TTY(
                         logind_session.tty
                 )
 

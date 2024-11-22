@@ -5,7 +5,7 @@ from typing import List, Mapping
 from unittest import TestCase, TestSuite
 from unittest.mock import Mock, mock_open, patch
 
-import logind_idle_session_extras.ps
+import stop_idle_sessions.ps
 
 
 class CgroupPidsTestCase(TestCase):
@@ -24,7 +24,7 @@ class CgroupPidsTestCase(TestCase):
         """Subclasses should override this method"""
         raise NotImplementedError('_mock_process_specs')
 
-    def _expected_process_objects(self) -> List[logind_idle_session_extras.ps.Process]:
+    def _expected_process_objects(self) -> List[stop_idle_sessions.ps.Process]:
         """Subclasses should override this method"""
         raise NotImplementedError('_expected_logind_sessions')
 
@@ -45,7 +45,7 @@ class CgroupPidsTestCase(TestCase):
 
         expected_processes = self._expected_process_objects()
         actual_processes = list(
-                logind_idle_session_extras.ps.processes_in_scope_path(
+                stop_idle_sessions.ps.processes_in_scope_path(
                     "/user.slice/user-1000.slice/session-1024.scope",
                     open_func=self._mocked_open
                 )

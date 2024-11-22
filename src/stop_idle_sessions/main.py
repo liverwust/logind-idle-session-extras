@@ -140,7 +140,8 @@ def load_sessions() -> List[Session]:
                 display_idle: Optional[timedelta] = None
                 if process.display is not None:
                     idle_ms = stop_idle_sessions.x11.retrieve_idle_time_ms(
-                            process.display
+                            process.display,
+                            process.xauthority
                     )
                     display_idle = timedelta(milliseconds=idle_ms)
 

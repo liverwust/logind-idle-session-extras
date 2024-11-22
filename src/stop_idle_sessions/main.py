@@ -171,7 +171,7 @@ def load_sessions() -> List[Session]:
                            'to session %s: %s',
                            logind_session.session_id,
                            err.message)
-            traceback.print_exception(err, file=sys.stderr)
+            traceback.print_exc(file=sys.stderr)
 
     # Go back and resolve backend tunneled Processes to their Sessions
     for session_a, session_b in product(sessions, sessions):

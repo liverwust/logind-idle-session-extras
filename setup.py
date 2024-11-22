@@ -8,7 +8,7 @@ long_description = (this_directory / "README.md").read_text()
 
 setup(
     name="stop-idle-sessions",
-    version="0.6.2",
+    version="0.6.3",
     description=("Refresh systemd-logind idle timeouts based on supplemental "
                  "user activity (e.g., VNC tunnel)"),
     long_description=long_description,

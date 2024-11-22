@@ -47,8 +47,8 @@ class Session(NamedTuple):
     # The TTY or PTY which is assigned to this session (or None)
     tty: Optional[logind_idle_session_extras.tty.TTY]
 
-    # The symbolic username corresponding to session.uid (or None)
-    username: Optional[str]
+    # The symbolic username corresponding to session.uid
+    username: str
 
     # Collection of Process objects belonging to this Session
     processes: List[SessionProcess]
@@ -91,7 +91,7 @@ def load_sessions() -> List[Session]:
                      'information: %s', err.message)
         return []
 
-    resolved_usernames: Mapping[int, Optional[str]] = {}
+    resolved_usernames: Mapping[int, str] = {}
 
     # Constructing the tree involves many layers of nesting, necessarily
     # pylint: disable=too-many-nested-blocks

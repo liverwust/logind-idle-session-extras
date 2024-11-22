@@ -42,18 +42,18 @@ class X11SessionProcesses:
         """
 
         # Try some specific command lines
-        xvnc_match = X11SessionProcesses.parse_xvnc_cmdline(process.cmdline)
+        xserver_match = X11SessionProcesses.parse_xserver_cmdline(process.cmdline)
 
         display: Optional[str] = None
         xauthority: Optional[str] = None
 
-        if xvnc_match[0] is not None:
-            display = xvnc_match[0]
+        if xserver_match[0] is not None:
+            display = xserver_match[0]
         elif 'DISPLAY' in process.environ:
             display = process.environ['DISPLAY']
 
-        if xvnc_match[1] is not None:
-            xauthority = xvnc_match[1]
+        if xserver_match[1] is not None:
+            xauthority = xserver_match[1]
         elif 'XAUTHORITY' in process.environ:
             xauthority = process.environ['XAUTHORITY']
 
@@ -132,19 +132,20 @@ class X11SessionProcesses:
         return None
 
     @staticmethod
-    def parse_xvnc_cmdline(cmdline: str) -> Tuple[Optional[str],
+    def parse_xserver_cmdline(cmdline: str) -> Tuple[Optional[str],
                                                   Optional[str]]:
-        """Attempt to identify information from an Xvnc command line
+        """Attempt to identify information from an X command line
 
         The first element of the returned tuple is a candidate DISPLAY, if one
         is found. The second is a candidate XAUTHORITY, if one is found.
+        This works with Xvnc, Xwayland, and possibly others.
         """
 
-        xvnc_re = re.compile(r'^.*Xvnc\s+(:[0-9]+).*-auth\s+(\S+).*$')
+        xserver_re = re.compile(r'^.*X[a-z]+\s+(:[0-9]+).*-auth\s+(\S+).*$')
 
-        xvnc_match = xvnc_re.match(cmdline)
-        if xvnc_match is not None:
-            return (xvnc_match.group(1), xvnc_match.group(2))
+        xserver_match = xserver_re.match(cmdline)
+        if xserver_match is not None:
+            return (xserver_match.group(1), xserver_match.group(2))
 
         return (None, None)
 

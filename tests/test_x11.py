@@ -11,7 +11,7 @@ from stop_idle_sessions.x11 import X11SessionProcesses
 class ParseCommandLineTestCase(TestCase):
     """Verify the behavior of the DISPLAY/XAUTHORITY command line parser"""
 
-    def test_parse_xvnc_cmdline(self):
+    def test_parse_xserver_cmdline(self):
         """Verify the behavior of the Xvnc command line parser"""
 
         sample_cmdline = ("/usr/bin/Xvnc :1 -auth /home/louis/.Xauthority "
@@ -21,7 +21,7 @@ class ParseCommandLineTestCase(TestCase):
                           "-localhost")
         expected_results = (':1', '/home/louis/.Xauthority')
 
-        actual_results = X11SessionProcesses.parse_xvnc_cmdline(
+        actual_results = X11SessionProcesses.parse_xserver_cmdline(
                 sample_cmdline
         )
 

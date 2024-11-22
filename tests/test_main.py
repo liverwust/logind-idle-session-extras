@@ -47,14 +47,16 @@ class MainLoopTestCase(TestCase):
     # pylint: disable=too-many-positional-arguments, too-many-arguments
     @staticmethod
     def create_mock_logind_session(session_id: str,
+                                   session_type: str,
                                    uid: int,
-                                   tty: str,
+                                   tty: Optional[str],
                                    leader: int,
                                    scope: str):
         """Generate a Mock representing a logind session"""
 
         session = Mock()
         session.session_id = session_id
+        session.session_type = session_type
         session.uid = uid
         session.tty = tty
         session.leader = leader
@@ -100,8 +102,9 @@ class MainLoopTestCase(TestCase):
 
     def register_mock_session(self,
                               session_id: str,
+                              session_type: str,
                               uid: int,
-                              tty: str,
+                              tty: Optional[str],
                               scope: str,
                               pids_and_tunnels: Mapping[int,
                                                         Tuple[List[int],
@@ -124,6 +127,7 @@ class MainLoopTestCase(TestCase):
 
         session.session = Mock()
         session.session.session_id = session_id
+        session.session.session_type = session_type
         session.session.uid = uid
         session.session.tty = tty
         session.session.scope = scope
@@ -269,38 +273,6 @@ class MainLoopTestCase(TestCase):
         self.assertEqual(len(matched_pairs), len(expected_sessions))
         self.assertEqual(len(matched_pairs), len(actual_sessions))
 
-    def test_check_time_discrepancy(self):
-        """Ensure that an old atime is updated to match a new mtime"""
-
-        for expected_to_change, second_field in [(True, 8), (False, 6)]:
-            with self.subTest(expected_to_change=expected_to_change):
-                modified_inner_mock_tty = Mock()
-                modified_inner_mock_tty.atime = datetime.datetime(2024, 1, 2,
-                                                                  3, 4, 5, 6)
-                modified_inner_mock_tty.mtime = datetime.datetime(2024, 1, 2,
-                                                                  3, 4, 5,
-                                                                  second_field)
-                modified_inner_mock_tty.touch_times = Mock()
-                modified_mock_tty = MainLoopTestCase._mock_tty(
-                        modified_inner_mock_tty
-                )
-
-                with patch('stop_idle_sessions.tty.TTY',
-                           new=modified_mock_tty):
-                    actual_sessions = stop_idle_sessions.main.load_sessions()
-
-                    # This test case doesn't care which session it uses
-                    changed = stop_idle_sessions.main.apply_time_discrepancy_rule(
-                            actual_sessions[0]
-                    )
-                    self.assertEqual(expected_to_change, changed)
-
-                    if expected_to_change:
-                        modified_inner_mock_tty.touch_times.assert_called_once_with(
-                                datetime.datetime(2024, 1, 2, 3, 4, 5,
-                                                second_field)
-                        )
-
     #
     # Internal methods used by test cases -- these should not be overridden
     #
@@ -359,7 +331,7 @@ class MainLoopTestCase(TestCase):
                     processes.append(process)
                 return processes
 
-        raise KeyError('could not find a scope for path {scope_path}')
+        raise KeyError(f'could not find a scope for path {scope_path}')
 
     def _resolve_tunneled_sessions(self):
         """Revisit the mocked session objects and link tunneled sessions"""

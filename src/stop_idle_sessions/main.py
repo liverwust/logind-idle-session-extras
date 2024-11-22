@@ -198,23 +198,3 @@ def load_sessions() -> List[Session]:
                      sum(map(lambda p: len(p.tunneled_processes), session.processes)))
 
     return sessions
-
-
-def apply_time_discrepancy_rule(session: Session) -> bool:
-    """Check and fix a TTY whose atime is older than its mtime
-
-    As indicated in the README, there are multiple kinds of "user activity" on
-    the command-line. The systemd-logind logic for idle timeouts checks the
-    atime on the TTY/PTY. User keyboard activity updates both the mtime and
-    atime. On the other hand, program output _only_ updates the mtime.
-
-    This rule ensures that the atime is touched to match the mtime, when the
-    atime is older than the mtime. In doing so, program output will ALSO re-up
-    the idle timeout.
-    """
-
-    if session.tty is not None:
-        if session.tty.atime < session.tty.mtime:
-            session.tty.touch_times(session.tty.mtime)
-            return True
-    return False

@@ -65,8 +65,11 @@ class LogindTestCase(TestCase):
             actual_logind_sessions.append(actual_logind_session)
         self._assert_fully_exercised()
 
-        self.assertTrue(compare_list_sets(expected_logind_sessions,
-                                          actual_logind_sessions))
+        try:
+            self.assertTrue(compare_list_sets(expected_logind_sessions,
+                                              actual_logind_sessions))
+        except AssertionError:
+            import pdb; pdb.set_trace()
 
     #
     # Internal methods used by test cases -- these should not be overridden

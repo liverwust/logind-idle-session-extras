@@ -110,10 +110,9 @@ terminated by `stop-idle-sessions` enforcement:
   `ssh -T remote-host.remote-domain.com`. Typically these are established by
   programs that are driving a remote system programmatically
   / noninteractively, and which only need to interact with the remote system
-  thru CLI primitives. For example, Ansible and Visual Studio Code Remoting
-  will both establish this kind of SSH session. Because these "sessions" are
-  noninteractive, there is limited "walk-up" risk and they are therefore not
-  subject to termination.
+  thru CLI primitives. For example, Visual Studio Code Remoting will establish
+  this kind of SSH session. Because these "sessions" are noninteractive, there
+  is limited "walk-up" risk and they are therefore not subject to termination.
 
 * **`systemd-logind` sessions belonging to excluded users.** If configured to
   do so, `stop-idle-sessions` will ignore any session associated with a list of

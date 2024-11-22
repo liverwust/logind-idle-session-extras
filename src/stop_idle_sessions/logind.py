@@ -81,6 +81,14 @@ class Session:
         return leader.get_uint32()
 
     @property
+    def session_type(self) -> str:
+        """Type (e.g., tty or x11) of this Session"""
+        session_type = self._session.get_cached_property('Type')
+        if session_type is None:
+            raise ValueError('Could not retrieve session Type')
+        return session_type.get_string()
+
+    @property
     def scope(self) -> str:
         """Systemd scope name for this Session"""
         scope = self._session.get_cached_property('Scope')

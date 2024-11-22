@@ -191,302 +191,362 @@ class Scenario1CgroupPidsTestCase(test_ps.CgroupPidsTestCase):
             stop_idle_sessions.ps.Process(
                     pid=772211,
                     cmdline="/usr/libexec/gvfsd-metadata",
-                    display=None
+                    display=None,
+                    xauthority=None
             ),
             stop_idle_sessions.ps.Process(
                     pid=952570,
                     cmdline="/usr/bin/Xvnc :1 -auth /u/wk/auser/.Xauthority -desktop computer:1 (auser) -fp catalogue:/etc/X11/fontpath.d -geometry 1024x768 -pn -rfbauth /u/wk/auser/.vnc/passwd -rfbport 5901 -localhost",
-                    display=None
+                    display=None,
+                    xauthority=None
             ),
             stop_idle_sessions.ps.Process(
                     pid=952581,
                     cmdline="/bin/sh /u/wk/auser/.vnc/xstartup",
-                    display=None
+                    display=None,
+                    xauthority=None
             ),
             stop_idle_sessions.ps.Process(
                     pid=952582,
                     cmdline="/usr/libexec/gnome-session-binary",
-                    display=None
+                    display=None,
+                    xauthority=None
             ),
             stop_idle_sessions.ps.Process(
                     pid=952591,
                     cmdline="dbus-launch --sh-syntax --exit-with-session",
-                    display=None
+                    display=None,
+                    xauthority=None
             ),
             stop_idle_sessions.ps.Process(
                     pid=952592,
                     cmdline="/usr/bin/dbus-daemon --syslog --fork --print-pid 5 --print-address 7 --session",
-                    display=None
+                    display=None,
+                    xauthority=None
             ),
             stop_idle_sessions.ps.Process(
                     pid=952644,
                     cmdline="/usr/libexec/at-spi-bus-launcher",
-                    display=None
+                    display=None,
+                    xauthority=None
             ),
             stop_idle_sessions.ps.Process(
                     pid=952649,
                     cmdline="/usr/bin/dbus-daemon --config-file=/usr/share/defaults/at-spi2/accessibility.conf --nofork --print-address 3",
-                    display=None
+                    display=None,
+                    xauthority=None
             ),
             stop_idle_sessions.ps.Process(
                     pid=952652,
                     cmdline="/usr/libexec/at-spi2-registryd --use-gnome-session",
-                    display=None
+                    display=None,
+                    xauthority=None
             ),
             stop_idle_sessions.ps.Process(
                     pid=952656,
                     cmdline="/usr/libexec/gvfsd",
-                    display=None
+                    display=None,
+                    xauthority=None
             ),
             stop_idle_sessions.ps.Process(
                     pid=952663,
                     cmdline="/usr/libexec/gvfsd-fuse /run/user/1002/gvfs -f -o big_writes",
-                    display=None
+                    display=None,
+                    xauthority=None
             ),
             stop_idle_sessions.ps.Process(
                     pid=952715,
                     cmdline="/usr/bin/gnome-keyring-daemon --start --components=pkcs11",
-                    display=None
+                    display=None,
+                    xauthority=None
             ),
             stop_idle_sessions.ps.Process(
                     pid=952727,
                     cmdline="/usr/bin/gnome-shell",
-                    display=None
+                    display=None,
+                    xauthority=None
             ),
             stop_idle_sessions.ps.Process(
                     pid=952766,
                     cmdline="ibus-daemon --xim --panel disable",
-                    display=None
+                    display=None,
+                    xauthority=None
             ),
             stop_idle_sessions.ps.Process(
                     pid=952768,
                     cmdline="/usr/libexec/xdg-permission-store",
-                    display=None
+                    display=None,
+                    xauthority=None
             ),
             stop_idle_sessions.ps.Process(
                     pid=952770,
                     cmdline="/usr/libexec/gnome-shell-calendar-server",
-                    display=None
+                    display=None,
+                    xauthority=None
             ),
             stop_idle_sessions.ps.Process(
                     pid=952774,
                     cmdline="/usr/libexec/ibus-dconf",
-                    display=None
+                    display=None,
+                    xauthority=None
             ),
             stop_idle_sessions.ps.Process(
                     pid=952775,
                     cmdline="/usr/libexec/ibus-extension-gtk3",
-                    display=None
+                    display=None,
+                    xauthority=None
             ),
             stop_idle_sessions.ps.Process(
                     pid=952777,
                     cmdline="/usr/libexec/ibus-x11 --kill-daemon",
-                    display=None
+                    display=None,
+                    xauthority=None
             ),
             stop_idle_sessions.ps.Process(
                     pid=952779,
                     cmdline="/usr/libexec/ibus-portal",
-                    display=None
+                    display=None,
+                    xauthority=None
             ),
             stop_idle_sessions.ps.Process(
                     pid=952805,
                     cmdline="/usr/libexec/evolution-source-registry",
-                    display=None
+                    display=None,
+                    xauthority=None
             ),
             stop_idle_sessions.ps.Process(
                     pid=952817,
                     cmdline="/usr/libexec/goa-daemon",
-                    display=None
+                    display=None,
+                    xauthority=None
             ),
             stop_idle_sessions.ps.Process(
                     pid=952819,
                     cmdline="/usr/libexec/dconf-service",
-                    display=None
+                    display=None,
+                    xauthority=None
             ),
             stop_idle_sessions.ps.Process(
                     pid=952837,
                     cmdline="/usr/libexec/goa-identity-service",
-                    display=None
+                    display=None,
+                    xauthority=None
             ),
             stop_idle_sessions.ps.Process(
                     pid=952841,
                     cmdline="/usr/libexec/gvfs-udisks2-volume-monitor",
-                    display=None
+                    display=None,
+                    xauthority=None
             ),
             stop_idle_sessions.ps.Process(
                     pid=952853,
                     cmdline="/usr/libexec/gvfs-mtp-volume-monitor",
-                    display=None
+                    display=None,
+                    xauthority=None
             ),
             stop_idle_sessions.ps.Process(
                     pid=952861,
                     cmdline="/usr/libexec/gvfs-goa-volume-monitor",
-                    display=None
+                    display=None,
+                    xauthority=None
             ),
             stop_idle_sessions.ps.Process(
                     pid=952868,
                     cmdline="/usr/libexec/gvfs-gphoto2-volume-monitor",
-                    display=None
+                    display=None,
+                    xauthority=None
             ),
             stop_idle_sessions.ps.Process(
                     pid=952875,
                     cmdline="/usr/libexec/gvfs-afc-volume-monitor",
-                    display=None
+                    display=None,
+                    xauthority=None
             ),
             stop_idle_sessions.ps.Process(
                     pid=952885,
                     cmdline="/usr/libexec/gsd-power",
-                    display=None
+                    display=None,
+                    xauthority=None
             ),
             stop_idle_sessions.ps.Process(
                     pid=952888,
                     cmdline="/usr/libexec/gsd-print-notifications",
-                    display=None
+                    display=None,
+                    xauthority=None
             ),
             stop_idle_sessions.ps.Process(
                     pid=952889,
                     cmdline="/usr/libexec/gsd-rfkill",
-                    display=None
+                    display=None,
+                    xauthority=None
             ),
             stop_idle_sessions.ps.Process(
                     pid=952890,
                     cmdline="/usr/libexec/gsd-screensaver-proxy",
-                    display=None
+                    display=None,
+                    xauthority=None
             ),
             stop_idle_sessions.ps.Process(
                     pid=952891,
                     cmdline="/usr/libexec/gsd-sharing",
-                    display=None
+                    display=None,
+                    xauthority=None
             ),
             stop_idle_sessions.ps.Process(
                     pid=952892,
                     cmdline="/usr/libexec/gsd-smartcard",
-                    display=None
+                    display=None,
+                    xauthority=None
             ),
             stop_idle_sessions.ps.Process(
                     pid=952893,
                     cmdline="/usr/libexec/gsd-sound",
-                    display=None
+                    display=None,
+                    xauthority=None
             ),
             stop_idle_sessions.ps.Process(
                     pid=952894,
                     cmdline="/usr/libexec/gsd-xsettings",
-                    display=None
+                    display=None,
+                    xauthority=None
             ),
             stop_idle_sessions.ps.Process(
                     pid=952895,
                     cmdline="/usr/libexec/gsd-subman",
-                    display=None
+                    display=None,
+                    xauthority=None
             ),
             stop_idle_sessions.ps.Process(
                     pid=952898,
                     cmdline="/usr/libexec/gsd-wacom",
-                    display=None
+                    display=None,
+                    xauthority=None
             ),
             stop_idle_sessions.ps.Process(
                     pid=952904,
                     cmdline="/usr/libexec/gsd-account",
-                    display=None
+                    display=None,
+                    xauthority=None
             ),
             stop_idle_sessions.ps.Process(
                     pid=952905,
                     cmdline="/usr/libexec/gsd-clipboard",
-                    display=None
+                    display=None,
+                    xauthority=None
             ),
             stop_idle_sessions.ps.Process(
                     pid=952907,
                     cmdline="/usr/libexec/gsd-a11y-settings",
-                    display=None
+                    display=None,
+                    xauthority=None
             ),
             stop_idle_sessions.ps.Process(
                     pid=952909,
                     cmdline="/usr/libexec/gsd-datetime",
-                    display=None
+                    display=None,
+                    xauthority=None
             ),
             stop_idle_sessions.ps.Process(
                     pid=952910,
                     cmdline="/usr/libexec/evolution-calendar-factory",
-                    display=None
+                    display=None,
+                    xauthority=None
             ),
             stop_idle_sessions.ps.Process(
                     pid=952911,
                     cmdline="/usr/libexec/gsd-color",
-                    display=None
+                    display=None,
+                    xauthority=None
             ),
             stop_idle_sessions.ps.Process(
                     pid=952913,
                     cmdline="/usr/libexec/gsd-keyboard",
-                    display=None
+                    display=None,
+                    xauthority=None
             ),
             stop_idle_sessions.ps.Process(
                     pid=952919,
                     cmdline="/usr/libexec/gsd-housekeeping",
-                    display=None
+                    display=None,
+                    xauthority=None
             ),
             stop_idle_sessions.ps.Process(
                     pid=952921,
                     cmdline="/usr/libexec/gsd-mouse",
-                    display=None
+                    display=None,
+                    xauthority=None
             ),
             stop_idle_sessions.ps.Process(
                     pid=952935,
                     cmdline="/usr/libexec/gsd-media-keys",
-                    display=None
+                    display=None,
+                    xauthority=None
             ),
             stop_idle_sessions.ps.Process(
                     pid=952941,
                     cmdline="/usr/libexec/ibus-engine-simple",
-                    display=None
+                    display=None,
+                    xauthority=None
             ),
             stop_idle_sessions.ps.Process(
                     pid=952959,
                     cmdline="/usr/libexec/gsd-printer",
-                    display=None
+                    display=None,
+                    xauthority=None
             ),
             stop_idle_sessions.ps.Process(
                     pid=953009,
                     cmdline="/usr/libexec/evolution-calendar-factory-subprocess --factory all --bus-name org.gnome.evolution.dataserver.Subprocess.Backend.Calendarx952910x2 --own-path /org/gnome/evolution/dataserver/Subprocess/Backend/Calendar/952910/2",
-                    display=None
+                    display=None,
+                    xauthority=None
             ),
             stop_idle_sessions.ps.Process(
                     pid=953028,
                     cmdline="/usr/libexec/evolution-addressbook-factory",
-                    display=None
+                    display=None,
+                    xauthority=None
             ),
             stop_idle_sessions.ps.Process(
                     pid=953050,
                     cmdline="/usr/libexec/evolution-addressbook-factory-subprocess --factory all --bus-name org.gnome.evolution.dataserver.Subprocess.Backend.AddressBookx953028x2 --own-path /org/gnome/evolution/dataserver/Subprocess/Backend/AddressBook/953028/2",
-                    display=None
+                    display=None,
+                    xauthority=None
             ),
             stop_idle_sessions.ps.Process(
                     pid=953201,
                     cmdline="/usr/libexec/gsd-disk-utility-notify",
-                    display=None
+                    display=None,
+                    xauthority=None
             ),
             stop_idle_sessions.ps.Process(
                     pid=953207,
                     cmdline="/usr/bin/gnome-software --gapplication-service",
-                    display=None
+                    display=None,
+                    xauthority=None
             ),
             stop_idle_sessions.ps.Process(
                     pid=953209,
                     cmdline="/usr/libexec/evolution/evolution-alarm-notify",
-                    display=None
+                    display=None,
+                    xauthority=None
             ),
             stop_idle_sessions.ps.Process(
                     pid=953210,
                     cmdline="/usr/libexec/tracker-miner-fs",
-                    display=None
+                    display=None,
+                    xauthority=None
             ),
             stop_idle_sessions.ps.Process(
                     pid=953212,
                     cmdline="/usr/libexec/tracker-miner-apps",
-                    display=None
+                    display=None,
+                    xauthority=None
             ),
             stop_idle_sessions.ps.Process(
                     pid=953217,
                     cmdline="/usr/libexec/tracker-store",
-                    display=None
+                    display=None,
+                    xauthority=None
             )
         ]
 
@@ -563,7 +623,8 @@ class Scenario1LoopbackConnectionTestCase(test_ss.LoopbackConnectionTestCase):
                         processes=[stop_idle_sessions.ps.Process(
                             pid=1256518,
                             cmdline="",
-                            display=None
+                            display=None,
+                            xauthority=None
                         )]
                     ),
                     server=stop_idle_sessions.ss.Socket(
@@ -572,7 +633,8 @@ class Scenario1LoopbackConnectionTestCase(test_ss.LoopbackConnectionTestCase):
                         processes=[stop_idle_sessions.ps.Process(
                             pid=952570,
                             cmdline="",
-                            display=None
+                            display=None,
+                            xauthority=None
                         )]
                     )
             )

@@ -7,6 +7,7 @@ from typing import Callable, List, NamedTuple, Optional
 import psutil
 
 from .exception import SessionParseError
+from .x11 import parse_xauthority_cmdline
 
 
 class Process(NamedTuple):
@@ -20,6 +21,9 @@ class Process(NamedTuple):
 
     # The value of the DISPLAY environment variable, if present (or None)
     display: Optional[str]
+
+    # The value of the XAUTHORITY environment variable, if present (or None)
+    xauthority: Optional[str]
 
     def __eq__(self, other):
         if isinstance(other, Process):
@@ -42,13 +46,26 @@ def processes_in_scope_path(scope_path: str,
             for cgroup_line in cgroup_f.readlines():
                 pid = int(cgroup_line)
                 ps_obj = psutil.Process(pid)
+                cmdline = ' '.join(ps_obj.cmdline())
+
                 display: Optional[str] = None
+                xauthority: Optional[str] = None
                 if 'DISPLAY' in ps_obj.environ():
                     display = ps_obj.environ()['DISPLAY']
+                if 'XAUTHORITY' in ps_obj.environ():
+                    xauthority = ps_obj.environ()['XAUTHORITY']
+
+                # This is a special case -- some X11-related apps specify
+                # -auth on their cmdlines
+                cmdline_xauthority_override = parse_xauthority_cmdline(cmdline)
+                if cmdline_xauthority_override is not None:
+                    xauthority = cmdline_xauthority_override
+
                 processes.append(Process(
                         pid=ps_obj.pid,
-                        cmdline=' '.join(ps_obj.cmdline()),
-                        display=display
+                        cmdline=cmdline,
+                        display=display,
+                        xauthority=xauthority
                 ))
         return processes
     except OSError as err:

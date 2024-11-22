@@ -152,7 +152,8 @@ class SSInvocation:
                         pid=int(pid_match.group(1)),
                         # This needs to be blank -- we can't get it from ss
                         cmdline="",
-                        display=None
+                        display=None,
+                        xauthority=None
                     ))
 
             if socket_match.group('State') == 'LISTEN':

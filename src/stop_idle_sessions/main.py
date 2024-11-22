@@ -190,19 +190,20 @@ def load_sessions() -> List[Session]:
                     process_a.tunneled_sessions.append(session_b)
 
     # Send the identified Sessions to the debug log
-    logger.debug('Identified %d sessions to be reviewed:')
+    logger.debug('Identified %d sessions to be reviewed:', len(sessions))
     for index, session in enumerate(sessions):
         tty_string = "notty"
         if session.tty is not None:
             tty_string = session.tty.name
         logger.debug('%d (id=%s): %s@%s with %d processes and '
-                     '%d active tunnels',
+                     '%d active tunnels to %d backend sessions',
                      index + 1,  # make index more human-friendly by adding 1
                      session.session.session_id,
                      session.username,
                      tty_string,
                      len(session.processes),
-                     sum(map(lambda p: len(p.tunneled_processes), session.processes)))
+                     sum(map(lambda p: len(p.tunneled_processes), session.processes)),
+                     sum(map(lambda p: len(p.tunneled_sessions), session.processes)))
 
     return sessions
 

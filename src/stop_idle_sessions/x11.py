@@ -28,6 +28,12 @@ def retrieve_idle_time_ms(display: str,
                           xauthority: Optional[str] = None) -> int:
     """Retrieve the idle time (in milliseconds) for the given X11 DISPLAY"""
 
+    # Crazy hack to try and work around this issue, reported by a _different
+    # project_ (which has never made it into the python-xlib upstream):
+    # https://github.com/asweigart/pyautogui/issues/202
+    getattr(Xlib.display, 'ext').__extensions__.remove(('RANDR', 'randr'))
+    getattr(Xlib.display, 'ext').__extensions__.remove(('XFIXES', 'xfixes'))
+
     try:
         if xauthority is not None:
             with tempfile.NamedTemporaryFile() as temp_xauth:

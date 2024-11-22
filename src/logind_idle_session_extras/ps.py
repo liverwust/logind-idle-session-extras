@@ -6,6 +6,8 @@ from typing import Callable, List, NamedTuple
 
 import psutil
 
+from .exception import SessionParseError
+
 
 class Process(NamedTuple):
     """Representation of a process either inside of a Session or otherwise"""
@@ -30,13 +32,18 @@ def processes_in_scope_path(scope_path: str,
         raise ValueError(f'invalid fully-qualified scope path: {scope_path}')
 
     processes: List[Process] = []
-    with open_func(f"/sys/fs/cgroup/systemd{scope_path}/cgroup.procs",
-                   "r") as cgroup_f:
-        for cgroup_line in cgroup_f.readlines():
-            pid = int(cgroup_line)
-            ps_obj = psutil.Process(pid)
-            processes.append(Process(
-                    pid=ps_obj.pid,
-                    cmdline=' '.join(ps_obj.cmdline())
-            ))
-    return processes
+
+    try:
+        with open_func(f"/sys/fs/cgroup/systemd{scope_path}/cgroup.procs",
+                    "r") as cgroup_f:
+            for cgroup_line in cgroup_f.readlines():
+                pid = int(cgroup_line)
+                ps_obj = psutil.Process(pid)
+                processes.append(Process(
+                        pid=ps_obj.pid,
+                        cmdline=' '.join(ps_obj.cmdline())
+                ))
+        return processes
+    except OSError as err:
+        raise SessionParseError(f"Could not read cgroup pids for "
+                                f"scope {scope_path}") from err

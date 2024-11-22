@@ -6,7 +6,8 @@ import re
 import subprocess
 from typing import List, NamedTuple, Tuple, Union
 
-from . import ps
+from . import list_set, ps
+from .exception import SessionParseError
 
 
 class Socket(NamedTuple):
@@ -36,17 +37,9 @@ class Socket(NamedTuple):
             return False
         if self.port != other.port:
             return False
-        if len(self.processes) != len(other.processes):
-            return False
 
-        other_processes = list(other.processes)
-        for my_process in self.processes:
-            try:
-                other_idx = other_processes.index(my_process)
-                del other_processes[other_idx]
-            except ValueError:
-                return False
-        return True
+        return list_set.compare_list_sets(self.processes,
+                                          other.processes)
 
 
 class LoopbackConnection(NamedTuple):
@@ -97,16 +90,20 @@ class SSInvocation:
         connections for now.
         """
 
-        cp = subprocess.run(["/usr/sbin/ss",
-                            "--all",
-                            "--no-header",
-                            "--numeric",
-                            "--oneline",
-                            "--processes",
-                            "--tcp"],
-                            encoding='utf-8',
-                            stdout=subprocess.PIPE,
-                            check=True)
+        try:
+            cp = subprocess.run(["/usr/sbin/ss",
+                                "--all",
+                                "--no-header",
+                                "--numeric",
+                                "--oneline",
+                                "--processes",
+                                "--tcp"],
+                                encoding='utf-8',
+                                stdout=subprocess.PIPE,
+                                check=True)
+        except subprocess.CalledProcessError as err:
+            raise SessionParseError('Could not read network connections from '
+                                    'system `ss` command') from err
 
         # LISTEN 0 128 0.0.0.0:22 0.0.0.0:* users:(("sshd",pid=5533,fd=3))
         socket_re = re.compile(r'^(?P<State>[-A-Z]+)\s+'
@@ -138,8 +135,8 @@ class SSInvocation:
                 process_parts = process_without_parens.split(',')
 
                 if len(process_parts) % 3 != 0:
-                    raise ValueError(f'invalid process spec detected: '
-                                     f'"{process_clause}"')
+                    raise SessionParseError(f'invalid process spec detected: '
+                                            f'"{process_clause}"')
 
                 for base in range(0, len(process_parts) // 3):
                     individual_parts = process_parts[base*3:(base+1)*3]
@@ -148,8 +145,8 @@ class SSInvocation:
                     pid_match = pid_re.match(individual_parts[1])
                     if (comm_match is None or
                         pid_match is None):
-                        raise ValueError(f'invalid process spec detected: '
-                                         f'"{process_clause}"')
+                        raise SessionParseError(f'invalid process spec '
+                                                f'detected: "{process_clause}"')
 
                     processes.append(ps.Process(
                         pid=int(pid_match.group(1)),

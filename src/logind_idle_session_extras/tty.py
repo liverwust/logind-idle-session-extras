@@ -6,6 +6,8 @@ import os
 import re
 from typing import Tuple
 
+from .exception import SessionParseError
+
 
 class TTY:
     """Representation of the TTY assigned to a given Session"""
@@ -23,7 +25,7 @@ class TTY:
             self._name = name
             self._atime, self._mtime = TTY._os_initialize_times(self.full_name)
         else:
-            raise ValueError(f'invalid shortname for tty/pts: {name}')
+            raise SessionParseError(f'invalid shortname for tty/pts: {name}')
 
     @property
     def name(self) -> str:
@@ -58,9 +60,12 @@ class TTY:
     def _os_initialize_times(path: str) -> Tuple[datetime.datetime,
                                                  datetime.datetime]:
         """As a staticmethod, this can easily be mocked"""
-        st_result = os.stat(path)
-        return (datetime.datetime.fromtimestamp(st_result.st_atime),
-                datetime.datetime.fromtimestamp(st_result.st_mtime))
+        try:
+            st_result = os.stat(path)
+            return (datetime.datetime.fromtimestamp(st_result.st_atime),
+                    datetime.datetime.fromtimestamp(st_result.st_mtime))
+        except OSError as err:
+            raise SessionParseError(f'Failed to stat {path}') from err
 
 
     @staticmethod
@@ -68,5 +73,8 @@ class TTY:
                         atime: datetime.datetime,
                         mtime: datetime.datetime):
         """As a staticmethod, this can easily be mocked"""
-        os.utime(path, times=(atime.timestamp(),
-                              mtime.timestamp()))
+        try:
+            os.utime(path, times=(atime.timestamp(),
+                                mtime.timestamp()))
+        except OSError as err:
+            raise SessionParseError(f'Failed to touch {path}') from err

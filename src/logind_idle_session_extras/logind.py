@@ -3,7 +3,9 @@
 
 from typing import List
 
-from gi.repository import Gio
+from gi.repository import Gio, GLib
+
+from .exception import SessionParseError
 
 
 class Session:
@@ -23,14 +25,18 @@ class Session:
         """Entry point for Manager -- do not call this directly"""
         node_name = f'/org/freedesktop/login1/session/{session_id}'
         self = cls()
-        self._session = Gio.DBusProxy.new_sync(bus,
-                                               Gio.DBusProxyFlags.NONE,
-                                               None,
-                                               'org.freedesktop.login1',
-                                               node_name,
-                                               'org.freedesktop.login1.Session',
-                                               None)
-        return self
+        try:
+            self._session = Gio.DBusProxy.new_sync(bus,
+                                                Gio.DBusProxyFlags.NONE,
+                                                None,
+                                                'org.freedesktop.login1',
+                                                node_name,
+                                                'org.freedesktop.login1.Session',
+                                                None)
+            return self
+        except Glib.Error as err:
+            raise SessionParseError(f'Problem fetching session id '
+                                    f'{session_id}: {err.message}') from err
 
     def __eq__(self, other):
         """Two Sessions are equal if they share the same ID"""
@@ -87,14 +93,6 @@ class Session:
         """'Fully-qualified' SystemD scope path for this Session"""
         return f"/user.slice/user-{self.uid}.slice/{self.scope}"
 
-    def terminate(self):
-        """Terminate the logind session and its processes"""
-        self._session.call_sync('Terminate',
-                                None,
-                                Gio.DBusCallFlags.NONE,
-                                -1,
-                                None)
-
 
 def get_all_sessions() -> List[Session]:
     """Proxy for the org.freedesktop.login1.Manager interface
@@ -105,21 +103,25 @@ def get_all_sessions() -> List[Session]:
     introspect this global state.
     """
 
-    bus = Gio.bus_get_sync(Gio.BusType.SYSTEM, None)
-    manager = Gio.DBusProxy.new_sync(bus,
-                                     Gio.DBusProxyFlags.NONE,
-                                     None,
-                                     'org.freedesktop.login1',
-                                     '/org/freedesktop/login1',
-                                     'org.freedesktop.login1.Manager',
-                                     None)
+    try:
+        bus = Gio.bus_get_sync(Gio.BusType.SYSTEM, None)
+        manager = Gio.DBusProxy.new_sync(bus,
+                                        Gio.DBusProxyFlags.NONE,
+                                        None,
+                                        'org.freedesktop.login1',
+                                        '/org/freedesktop/login1',
+                                        'org.freedesktop.login1.Manager',
+                                        None)
 
-    sessions: List[Session] = []
-    for raw_session in manager.call_sync('ListSessions',
-                                         None,
-                                         Gio.DBusCallFlags.NONE,
-                                         -1,
-                                         None).unpack()[0]:
-        session_id = raw_session[0]
-        sessions.append(Session.initialize_from_manager(bus, session_id))
-    return sessions
+        sessions: List[Session] = []
+        for raw_session in manager.call_sync('ListSessions',
+                                            None,
+                                            Gio.DBusCallFlags.NONE,
+                                            -1,
+                                            None).unpack()[0]:
+            session_id = raw_session[0]
+            sessions.append(Session.initialize_from_manager(bus, session_id))
+        return sessions
+    except Glib.Error as err:
+        raise SessionParseError(f'Problem fetching all sessions from bus: '
+                                f'{err.message}') from err

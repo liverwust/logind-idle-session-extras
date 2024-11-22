@@ -2,10 +2,11 @@
 
 
 import subprocess
-from typing import Optional
+
+from .exception import SessionParseError
 
 
-def uid_to_username(uid: int) -> Optional[str]:
+def uid_to_username(uid: int) -> str:
     """Resolve a numeric user ID to a symbolic username
 
     Rather than using the built-in pwd module, this calls out to getent
@@ -25,6 +26,9 @@ def uid_to_username(uid: int) -> Optional[str]:
     if cp.returncode == 2:
         # From man 1 getent, this means: "One or more supplied key could not
         # be found in the database."
-        return None
+        raise SessionParseError(f'Unknown user ID {uid}')
+
+    # This would be an usual condition, probably indicating a programming
+    # error (not recoverable)
     raise RuntimeError(f"Unknown rc {cp.returncode} from getent "
                        f"with stderr: {cp.stderr}")

@@ -5,6 +5,7 @@ from itertools import product
 import logging
 from typing import List, Mapping, NamedTuple, Optional, Union
 
+from logind_idle_session_extras.exception import SessionParseError
 import logind_idle_session_extras.getent
 import logind_idle_session_extras.logind
 import logind_idle_session_extras.ps
@@ -59,10 +60,6 @@ class Session(NamedTuple):
             return False
         return self.session.session_id == other.session.session_id
 
-    def terminate(self):
-        """Terminate the backend logind session and its processes"""
-        self.session.terminate()
-
 
 #def check_ssh_session_tunnel(session: Session) -> bool:
 #    """Check whether an SSH session is tunneled to a backend session
@@ -82,54 +79,73 @@ class Session(NamedTuple):
 #
 
 # Constructing the tree involves many local variables, necessarily
-# pylint: disable-next=too-many-locals
+# pylint: disable-next=too-many-locals, too-many-branches
 def load_sessions() -> List[Session]:
     """Construct an abstract Session/Process tree from system observations"""
 
-    logind_sessions = logind_idle_session_extras.logind.get_all_sessions()
-    loopback_connections = logind_idle_session_extras.ss.find_loopback_connections()
+    try:
+        logind_sessions = logind_idle_session_extras.logind.get_all_sessions()
+        loopback_connections = logind_idle_session_extras.ss.find_loopback_connections()
+    except SessionParseError as err:
+        logger.error('Problem while reading session and networking table '
+                     'information: %s', err.message)
+        return []
+
     resolved_usernames: Mapping[int, Optional[str]] = {}
 
     # Constructing the tree involves many layers of nesting, necessarily
     # pylint: disable=too-many-nested-blocks
     sessions: List[Session] = []
     for logind_session in logind_sessions:
-        if logind_session.uid not in resolved_usernames:
-            username = logind_idle_session_extras.getent.uid_to_username(
-                    logind_session.uid
+        try:
+            if logind_session.uid not in resolved_usernames:
+                username = logind_idle_session_extras.getent.uid_to_username(
+                        logind_session.uid
+                )
+                resolved_usernames[logind_session.uid] = username
+
+            session_processes: List[SessionProcess] = []
+            ps_table = logind_idle_session_extras.ps.processes_in_scope_path(
+                    logind_session.scope_path
             )
-            resolved_usernames[logind_session.uid] = username
+            for process in ps_table:
+                tunnels: List[Union[logind_idle_session_extras.ps.Process,
+                                    Session]] = []
 
-        session_processes: List[SessionProcess] = []
-        for process in logind_idle_session_extras.ps.processes_in_scope_path(
-                logind_session.scope_path):
-            tunnels: List[Union[logind_idle_session_extras.ps.Process,
-                                Session]] = []
+                # Associate Processes thru loopback to other Processes
+                for loopback_connection in loopback_connections:
+                    client_processes = loopback_connection.client.processes
+                    server_processes = loopback_connection.server.processes
+                    for client_process in client_processes:
+                        for server_process in server_processes:
+                            if process == client_process:
+                                if not server_process in tunnels:
+                                    tunnels.append(server_process)
 
-            # Associate Processes thru loopback connections to other Processes
-            for loopback_connection in loopback_connections:
-                for client_process in loopback_connection.client.processes:
-                    for server_process in loopback_connection.server.processes:
-                        if process == client_process:
-                            if not server_process in tunnels:
-                                tunnels.append(server_process)
+                session_processes.append(SessionProcess(
+                        process=process,
+                        leader=(process.pid == logind_session.leader),
+                        tunnels=tunnels
+                ))
 
-            session_processes.append(SessionProcess(
-                    process=process,
-                    leader=(process.pid == logind_session.leader),
-                    tunnels=tunnels
+            session_tty: Optional[logind_idle_session_extras.tty.TTY] = None
+            if logind_session.tty != "":
+                session_tty = logind_idle_session_extras.tty.TTY(
+                        logind_session.tty
+                )
+
+            sessions.append(Session(
+                    session=logind_session,
+                    tty=session_tty,
+                    username=resolved_usernames[logind_session.uid],
+                    processes=session_processes
             ))
 
-        session_tty: Optional[logind_idle_session_extras.tty.TTY] = None
-        if logind_session.tty != "":
-            session_tty = logind_idle_session_extras.tty.TTY(logind_session.tty)
-
-        sessions.append(Session(
-                session=logind_session,
-                tty=session_tty,
-                username=resolved_usernames[logind_session.uid],
-                processes=session_processes
-        ))
+        except SessionParseError as err:
+            logger.warning('Could not successfully parse information related '
+                           'to session %s: %s',
+                           logind_session.session_id,
+                           err.message)
 
     # Go back and resolve backend tunneled Processes to their Sessions
     for session_a, session_b in product(sessions, sessions):
@@ -138,7 +154,6 @@ def load_sessions() -> List[Session]:
             for index, backend_process_a in enumerate(process_a.tunnels):
                 if backend_process_a == process_b.process:
                     process_a.tunnels[index] = session_b
-
 
     # Send the identified Sessions to the debug log
     logger.debug('Identified %d sessions to be reviewed:')

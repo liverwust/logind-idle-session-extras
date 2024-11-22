@@ -112,10 +112,11 @@ class X11SessionProcesses:
                         display,
                         xauthority
                 )
-                if result is None:
-                    result = (display, candidate_idletime)
-                elif candidate_idletime < result[1]:
-                    result = (display, candidate_idletime)
+                if candidate_idletime is not None:
+                    if result is None:
+                        result = (display, candidate_idletime)
+                    elif candidate_idletime < result[1]:
+                        result = (display, candidate_idletime)
 
             except SessionParseError as err:
                 # Given the choice: If an XAUTHORITY was determined, then
@@ -151,7 +152,7 @@ class X11SessionProcesses:
 
     @staticmethod
     def retrieve_idle_time(display: str,
-                           xauthority: Optional[str] = None) -> timedelta:
+                           xauthority: Optional[str] = None) -> Optional[timedelta]:
         """Retrieve the idle time (in milliseconds) for the given X11 DISPLAY"""
 
         # Crazy hack to try and work around this issue, reported by a _different
@@ -168,8 +169,14 @@ class X11SessionProcesses:
                 os.environ['XAUTHORITY'] = xauthority
 
             d = Xlib.display.Display(display)
-            idle_time_ms = d.screen().root.screensaver_query_info().idle
-            return timedelta(milliseconds=idle_time_ms)
+            if d.has_extension('MIT-SCREEN-SAVER'):
+                idle_time_ms = d.screen().root.screensaver_query_info().idle
+                return timedelta(milliseconds=idle_time_ms)
+
+            # The DISPLAY doesn't support the screen saver extension, which
+            # means it is probably either forwarded (X11) or running a GDM
+            # login session.
+            return None
 
         except Xlib.error.DisplayConnectionError as err:
             raise SessionParseError(f'Could not connect to X11 display identified '

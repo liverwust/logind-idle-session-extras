@@ -320,6 +320,6 @@ However, there are a few notable downsides:
   implementation which cleans up the `State=closing` sessions that would
   otherwise be left behind by terminating just the [Sesssion
   Leader](#session-leaders). However, for
-  [the reasons described above (3rd bullet)](#ineligible-sessions),
+  [the reasons described above (4th bullet)](#ineligible-sessions),
   our team actually considers these lingering sessions to be useful for
   allowing users to continue running persistent processes.

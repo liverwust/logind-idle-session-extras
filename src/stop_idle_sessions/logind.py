@@ -34,7 +34,7 @@ class Session:
                                                 'org.freedesktop.login1.Session',
                                                 None)
             return self
-        except Glib.Error as err:
+        except GLib.Error as err:
             raise SessionParseError(f'Problem fetching session id '
                                     f'{session_id}: {err.message}') from err
 
@@ -122,6 +122,6 @@ def get_all_sessions() -> List[Session]:
             session_id = raw_session[0]
             sessions.append(Session.initialize_from_manager(bus, session_id))
         return sessions
-    except Glib.Error as err:
+    except GLib.Error as err:
         raise SessionParseError(f'Problem fetching all sessions from bus: '
                                 f'{err.message}') from err

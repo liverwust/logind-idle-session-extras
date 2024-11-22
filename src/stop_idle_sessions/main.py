@@ -1,9 +1,10 @@
 """Main logic for the stop-idle-session loop"""
 
 
+from datetime import timedelta
 from itertools import product
 import logging
-from typing import List, Mapping, NamedTuple, Optional, Union
+from typing import List, Mapping, NamedTuple, Optional
 
 from stop_idle_sessions.exception import SessionParseError
 import stop_idle_sessions.getent
@@ -11,6 +12,7 @@ import stop_idle_sessions.logind
 import stop_idle_sessions.ps
 import stop_idle_sessions.ss
 import stop_idle_sessions.tty
+import stop_idle_sessions.x11
 
 
 logger = logging.getLogger(__name__)
@@ -26,9 +28,21 @@ class SessionProcess(NamedTuple):
     # (i.e., whether Process.pid == Session.leader_pid)
     leader: bool
 
+    # The value of the DISPLAY environment variable for this particular
+    # process, or None if none was assigned
+    display: Optional[str]
+
+    # The idletime (expressed as a timedelta) reported by the X11 Screen Saver
+    # extension for this DISPLAY (or None)
+    display_idle: Optional[timedelta]
+
     # A (possibly empty) list of backend processes that this particular
-    # process has tunneled back into *OR* the Sessions that they are part of
-    tunnels: List[Union[stop_idle_sessions.ps.Process, 'Session']]
+    # process has tunneled back into
+    tunneled_processes: List[stop_idle_sessions.ps.Process]
+
+    # A (possibly empty) list of Sessions that contain the tunneled_processes
+    # that this particular process has connected to
+    tunneled_sessions: List['Session']
 
     def __eq__(self, other):
         if not hasattr(other, 'process'):
@@ -109,8 +123,7 @@ def load_sessions() -> List[Session]:
                     logind_session.scope_path
             )
             for process in ps_table:
-                tunnels: List[Union[stop_idle_sessions.ps.Process,
-                                    Session]] = []
+                tunneled_processes: List[stop_idle_sessions.ps.Process] = []
 
                 # Associate Processes thru loopback to other Processes
                 for loopback_connection in loopback_connections:
@@ -119,13 +132,23 @@ def load_sessions() -> List[Session]:
                     for client_process in client_processes:
                         for server_process in server_processes:
                             if process == client_process:
-                                if not server_process in tunnels:
-                                    tunnels.append(server_process)
+                                if not server_process in tunneled_processes:
+                                    tunneled_processes.append(server_process)
+
+                display_idle: Optional[timedelta] = None
+                if process.display is not None:
+                    idle_ms = stop_idle_sessions.x11.retrieve_idle_time_ms(
+                            process.display
+                    )
+                    display_idle = timedelta(milliseconds=idle_ms)
 
                 session_processes.append(SessionProcess(
                         process=process,
                         leader=(process.pid == logind_session.leader),
-                        tunnels=tunnels
+                        display=process.display,
+                        display_idle=display_idle,
+                        tunneled_processes=tunneled_processes,
+                        tunneled_sessions=[]
                 ))
 
             session_tty: Optional[stop_idle_sessions.tty.TTY] = None
@@ -151,9 +174,9 @@ def load_sessions() -> List[Session]:
     for session_a, session_b in product(sessions, sessions):
         for process_a, process_b in product(session_a.processes,
                                             session_b.processes):
-            for index, backend_process_a in enumerate(process_a.tunnels):
+            for backend_process_a in process_a.tunneled_processes:
                 if backend_process_a == process_b.process:
-                    process_a.tunnels[index] = session_b
+                    process_a.tunneled_sessions.append(session_b)
 
     # Send the identified Sessions to the debug log
     logger.debug('Identified %d sessions to be reviewed:')
@@ -168,7 +191,7 @@ def load_sessions() -> List[Session]:
                      session.username,
                      tty_string,
                      len(session.processes),
-                     sum(map(lambda p: len(p.tunnels), session.processes)))
+                     sum(map(lambda p: len(p.tunneled_processes), session.processes)))
 
     return sessions
 

@@ -151,7 +151,8 @@ class SSInvocation:
                     processes.append(ps.Process(
                         pid=int(pid_match.group(1)),
                         # This needs to be blank -- we can't get it from ss
-                        cmdline=""
+                        cmdline="",
+                        display=None
                     ))
 
             if socket_match.group('State') == 'LISTEN':

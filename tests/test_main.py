@@ -3,7 +3,7 @@
 
 import datetime
 from ipaddress import IPv4Address, IPv6Address
-from typing import Callable, List, Mapping, Optional, Set, Union
+from typing import Callable, List, Mapping, Optional, Set, Union, Tuple
 from unittest import TestCase, TestSuite
 from unittest.mock import Mock, patch
 
@@ -104,13 +104,13 @@ class MainLoopTestCase(TestCase):
                               tty: str,
                               scope: str,
                               pids_and_tunnels: Mapping[int,
-                                                        List[Union[int,
-                                                                   str]]]) -> None:
+                                                        Tuple[List[int],
+                                                              List[str]]]) -> None:
         """Generate a Mock representing a parsed session
 
         The strange type of pids_and_tunnels is a mapping from client PIDs,
-        into a list of either backend integer PIDs (if not associated with
-        sessions) or string session IDs (if associated with sessions).
+        into a list of their backend integer PIDs and (separately) a list of
+        their backend string session IDs.
 
         Unlike the create_mock_* functions, this one does not return its
         result. Instead, it saves it into a private array for later use.
@@ -138,22 +138,23 @@ class MainLoopTestCase(TestCase):
 
             process.process = Mock()
             process.process.pid = client_pid
+            process.process.display = None
+            process.process.__eq__ = MainLoopTestCase._mock_process_eq
             process.__eq__ = MainLoopTestCase._mock_session_process_eq
 
-            process.tunnels = []
-            for tunnel in tunnel_spec:
-                if isinstance(tunnel, str):
-                    # This will be resolved to a mock Session object later, by
-                    # the _resolve_tunneled_sessions method.
-                    process.tunnels.append(tunnel)
-                elif isinstance(tunnel, int):
-                    backend_process = Mock()
-                    backend_process.process = Mock()
-                    backend_process.process.pid = tunnel
-                    backend_process.__eq__ = Mock(
-                            side_effect=MainLoopTestCase._mock_session_process_eq
-                    )
-                    process.tunnels.append(backend_process)
+            process.tunneled_processes = []
+            for tunnel in tunnel_spec[0]:
+                backend_process = Mock()
+                backend_process.pid = tunnel
+                backend_process.display = None
+                backend_process.__eq__ = MainLoopTestCase._mock_process_eq
+                process.tunneled_processes.append(backend_process)
+
+            process.tunneled_sessions = []
+            for tunnel in tunnel_spec[1]:
+                # This will be resolved to a mock Session object later, by
+                # the _resolve_tunneled_sessions method.
+                process.tunneled_sessions.append(tunnel)
 
             session.processes.append(process)
 
@@ -242,12 +243,23 @@ class MainLoopTestCase(TestCase):
                                                   actual.processes)
 
             for expected_p, actual_p in matched_pid_pairs:
-                matched_tunnel_pairs = matchup_list_sets(expected_p.tunnels,
-                                                         actual_p.tunnels)
-                self.assertEqual(len(matched_tunnel_pairs),
-                                 len(expected_p.tunnels))
-                self.assertEqual(len(matched_tunnel_pairs),
-                                 len(actual_p.tunnels))
+                matched_tunneled_processes = matchup_list_sets(
+                        expected_p.tunneled_processes,
+                        actual_p.tunneled_processes
+                )
+                self.assertEqual(len(matched_tunneled_processes),
+                                 len(expected_p.tunneled_processes))
+                self.assertEqual(len(matched_tunneled_processes),
+                                 len(actual_p.tunneled_processes))
+
+                matched_tunneled_sessions = matchup_list_sets(
+                        expected_p.tunneled_sessions,
+                        actual_p.tunneled_sessions
+                )
+                self.assertEqual(len(matched_tunneled_sessions),
+                                 len(expected_p.tunneled_sessions))
+                self.assertEqual(len(matched_tunneled_sessions),
+                                 len(actual_p.tunneled_sessions))
 
             self.assertEqual(len(matched_pid_pairs),
                              len(expected.processes))
@@ -343,6 +355,7 @@ class MainLoopTestCase(TestCase):
                 for pid in sorted(candidate_pids):
                     process = Mock()
                     process.pid = pid
+                    process.display = None
                     processes.append(process)
                 return processes
 
@@ -355,11 +368,10 @@ class MainLoopTestCase(TestCase):
         # pylint: disable-next=too-many-nested-blocks
         for session in self._mocked_session_objects:
             for process in session.processes:
-                for index, tunnel in enumerate(process.tunnels):
-                    if isinstance(tunnel, str):
-                        for find_session in self._mocked_session_objects:
-                            if tunnel == find_session.session.session_id:
-                                process.tunnels[index] = find_session
+                for index, tunnel in enumerate(process.tunneled_sessions):
+                    for find_session in self._mocked_session_objects:
+                        if tunnel == find_session.session.session_id:
+                            process.tunneled_sessions[index] = find_session
 
     #
     # Internal attributes used by test cases -- subclasses shouldn't use these

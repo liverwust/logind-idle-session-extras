@@ -72,6 +72,7 @@ class CgroupPidsTestCase(TestCase):
             self._mocked_processes[pid] = Mock()
             self._mocked_processes[pid].pid = pid
             self._mocked_processes[pid].cmdline = Mock(return_value=cmdline.split())
+            self._mocked_processes[pid].environ = Mock(return_value={})
 
         self._mocked_open = mock_open(read_data=self._cgroup_procs_content)
 

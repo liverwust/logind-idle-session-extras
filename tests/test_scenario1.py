@@ -1,4 +1,4 @@
-"""Scenario 1 for unit-testing of logind-idle-sessions-extras
+"""Scenario 1 for unit-testing of stop-idle-sessions
 
 In Scenario 1, there is a single active user with one SSH session and one
 non-idle VNC session. The SSH session is actively tunneled into the VNC

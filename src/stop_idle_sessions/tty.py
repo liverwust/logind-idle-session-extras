@@ -13,7 +13,7 @@ class TTY:
     """Representation of the TTY assigned to a given Session"""
 
     # The access time of the TTY/PTY, which is updated only by user activity
-    # (and, occasionally, by logind-idle-session-extras!)
+    # (and, occasionally, by stop-idle-sessions!)
     _atime: datetime.datetime
 
     # The modification time of the TTY/PTY, which is updated by both user

@@ -1,4 +1,4 @@
-"""Main logic for the logind-idle-session-extras loop"""
+"""Main logic for the stop-idle-session loop"""
 
 
 from itertools import product

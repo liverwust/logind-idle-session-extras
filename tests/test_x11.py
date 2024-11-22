@@ -14,7 +14,11 @@ class ParseCommandLineTestCase(TestCase):
     def test_parse_xvnc_cmdline(self):
         """Verify the behavior of the Xvnc command line parser"""
 
-        sample_cmdline = "/usr/bin/Xvnc :1 -auth /home/louis/.Xauthority -desktop samplehost.sampledomain:1 (auser) -fp catalogue:/etc/X11/fontpath.d -geometry 1024x768 -pn -rfbauth /home/auser/.vnc/passwd -rfbport 5901 -localhost"
+        sample_cmdline = ("/usr/bin/Xvnc :1 -auth /home/louis/.Xauthority "
+                          "-desktop samplehost.sampledomain:1 (auser) -fp "
+                          "catalogue:/etc/X11/fontpath.d -geometry 1024x768 "
+                          "-pn -rfbauth /home/auser/.vnc/passwd -rfbport 5901"
+                          "-localhost")
         expected_results = (':1', '/home/louis/.Xauthority')
 
         actual_results = X11SessionProcesses.parse_xvnc_cmdline(

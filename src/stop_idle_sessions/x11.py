@@ -5,7 +5,7 @@ from collections import defaultdict
 from datetime import timedelta
 import os
 import re
-from typing import List, Mapping, Optional, Set, Tuple, Union
+from typing import List, Mapping, Optional, Set, Tuple
 
 import Xlib.display
 import Xlib.error

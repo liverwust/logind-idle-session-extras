@@ -205,3 +205,10 @@ def load_sessions() -> List[Session]:
                      sum(map(lambda p: len(p.tunneled_processes), session.processes)))
 
     return sessions
+
+
+# TODO: get rid of this
+def just_print():
+    """Just use logging to print some stuff"""
+    logging.basicConfig(level=logging.DEBUG)
+    load_sessions()

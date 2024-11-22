@@ -8,7 +8,7 @@ long_description = (this_directory / "README.md").read_text()
 
 setup(
     name="stop-idle-sessions",
-    version="0.6.11",
+    version="0.6.12",
     description=("Refresh systemd-logind idle timeouts based on supplemental "
                  "user activity (e.g., VNC tunnel)"),
     long_description=long_description,
@@ -43,7 +43,7 @@ setup(
     ],
     entry_points={
         'console_scripts': [
-            'stop-idle-sessions = stop_idle_sessions.main:iterate'
+            'stop-idle-sessions = stop_idle_sessions.main:just_print'
         ]
     },
     python_requires=">= 3.6"

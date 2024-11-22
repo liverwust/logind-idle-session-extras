@@ -11,15 +11,30 @@ from stop_idle_sessions.x11 import X11SessionProcesses
 class ParseCommandLineTestCase(TestCase):
     """Verify the behavior of the DISPLAY/XAUTHORITY command line parser"""
 
-    def test_parse_xserver_cmdline(self):
+    def test_parse_xvnc_cmdline(self):
         """Verify the behavior of the Xvnc command line parser"""
 
-        sample_cmdline = ("/usr/bin/Xvnc :1 -auth /home/louis/.Xauthority "
+        sample_cmdline = ("/usr/bin/Xvnc :1 -auth /home/auser/.Xauthority "
                           "-desktop samplehost.sampledomain:1 (auser) -fp "
                           "catalogue:/etc/X11/fontpath.d -geometry 1024x768 "
                           "-pn -rfbauth /home/auser/.vnc/passwd -rfbport 5901"
                           "-localhost")
-        expected_results = (':1', '/home/louis/.Xauthority')
+        expected_results = (':1', '/home/auser/.Xauthority')
+
+        actual_results = X11SessionProcesses.parse_xserver_cmdline(
+                sample_cmdline
+        )
+
+        self.assertEqual(expected_results, actual_results)
+
+    def test_parse_xwayland_cmdline(self):
+        """Verify the behavior of the Xwayland command line parser"""
+
+        sample_cmdline = ("/usr/bin/Xwayland :1024 -rootless -terminate "
+                          "-accessx -core -auth "
+                          "/run/user/42/.mutter-Xwaylandauth.8ZZMX2 "
+                          "-listen 4 -listen 5 -displayfd 6")
+        expected_results = (':1024', '/run/user/42/.mutter-Xwaylandauth.8ZZMX2')
 
         actual_results = X11SessionProcesses.parse_xserver_cmdline(
                 sample_cmdline
@@ -47,7 +62,7 @@ class X11SessionProcessesTestCase(TestCase):
             ),
             Process(
                     pid=20277,
-                    cmdline='/bin/sh /home/louis/.vnc/xstartup',
+                    cmdline='/bin/sh /home/auser/.vnc/xstartup',
                     environ={
                         'DISPLAY': ':1'
                     }

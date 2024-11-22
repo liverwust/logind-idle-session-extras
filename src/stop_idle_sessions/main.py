@@ -4,6 +4,8 @@
 from datetime import timedelta
 from itertools import product
 import logging
+import sys
+import traceback
 from typing import List, Mapping, NamedTuple, Optional
 
 from stop_idle_sessions.exception import SessionParseError
@@ -103,7 +105,7 @@ def load_sessions() -> List[Session]:
     except SessionParseError as err:
         logger.error('Problem while reading session and networking table '
                      'information: %s', err.message)
-        return []
+        raise err
 
     resolved_usernames: Mapping[int, str] = {}
 
@@ -169,6 +171,7 @@ def load_sessions() -> List[Session]:
                            'to session %s: %s',
                            logind_session.session_id,
                            err.message)
+            traceback.print_exception(err, file=sys.stderr)
 
     # Go back and resolve backend tunneled Processes to their Sessions
     for session_a, session_b in product(sessions, sessions):

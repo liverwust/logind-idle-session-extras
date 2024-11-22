@@ -8,7 +8,7 @@ long_description = (this_directory / "README.md").read_text()
 
 setup(
     name="stop-idle-sessions",
-    version="0.6.0",
+    version="0.6.1",
     description=("Refresh systemd-logind idle timeouts based on supplemental "
                  "user activity (e.g., VNC tunnel)"),
     long_description=long_description,
@@ -38,7 +38,8 @@ setup(
     # These minimum versions are derived from RHEL8
     install_requires=[
         "PyGObject >= 3.28.3",
-        "psutil >= 5.4.3"
+        "psutil >= 5.4.3",
+        "python-xlib >= 0.33"
     ],
     entry_points={
         'console_scripts': [

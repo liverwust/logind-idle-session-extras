@@ -1,7 +1,6 @@
 """Common logic for the main loop, shared across all scenarios"""
 
 
-import datetime
 from ipaddress import IPv4Address, IPv6Address
 from typing import Callable, List, Mapping, Optional, Set, Union, Tuple
 from unittest import TestCase, TestSuite
@@ -85,6 +84,8 @@ class MainLoopTestCase(TestCase):
         for client_pid in client_pids:
             process_mock = Mock()
             process_mock.pid = client_pid
+            process_mock.cmdline = ""
+            process_mock.environ = {}
             process_mock.__eq__ = MainLoopTestCase._mock_process_eq
             connection.client.processes.append(process_mock)
 
@@ -95,6 +96,8 @@ class MainLoopTestCase(TestCase):
         for server_pid in server_pids:
             process_mock = Mock()
             process_mock.pid = server_pid
+            process_mock.cmdline = ""
+            process_mock.environ = {}
             process_mock.__eq__ = MainLoopTestCase._mock_process_eq
             connection.server.processes.append(process_mock)
 
@@ -142,7 +145,8 @@ class MainLoopTestCase(TestCase):
 
             process.process = Mock()
             process.process.pid = client_pid
-            process.process.display = None
+            process.process.cmdline = ""
+            process.process.environ = {}
             process.process.__eq__ = MainLoopTestCase._mock_process_eq
             process.__eq__ = MainLoopTestCase._mock_session_process_eq
 
@@ -150,7 +154,8 @@ class MainLoopTestCase(TestCase):
             for tunnel in tunnel_spec[0]:
                 backend_process = Mock()
                 backend_process.pid = tunnel
-                backend_process.display = None
+                backend_process.cmdline = ""
+                backend_process.environ = {}
                 backend_process.__eq__ = MainLoopTestCase._mock_process_eq
                 process.tunneled_processes.append(backend_process)
 
@@ -327,7 +332,8 @@ class MainLoopTestCase(TestCase):
                 for pid in sorted(candidate_pids):
                     process = Mock()
                     process.pid = pid
-                    process.display = None
+                    process.cmdline = ""
+                    process.environ = {}
                     processes.append(process)
                 return processes
 

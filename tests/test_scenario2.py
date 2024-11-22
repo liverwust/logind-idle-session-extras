@@ -200,68 +200,57 @@ class Scenario2CgroupPidsTestCase(test_ps.CgroupPidsTestCase):
             stop_idle_sessions.ps.Process(
                     pid=19012,
                     cmdline="sshd: auser [priv]",
-                    display=None,
-                    xauthority=None
+                    environ={}
             ),
             stop_idle_sessions.ps.Process(
                     pid=19015,
                     cmdline="sshd: auser@notty",
-                    display=None,
-                    xauthority=None
+                    environ={}
             ),
             stop_idle_sessions.ps.Process(
                     pid=19016,
                     cmdline="-bash",
-                    display=None,
-                    xauthority=None
+                    environ={}
             ),
             stop_idle_sessions.ps.Process(
                     pid=19400,
                     cmdline="sh",
-                    display=None,
-                    xauthority=None
+                    environ={}
             ),
             stop_idle_sessions.ps.Process(
                     pid=19453,
                     cmdline="/home/auser/.vscode-server/code-f1a4fb101478ce6ec82fe9627c43efbf9e98c813 command-shell --cli-data-dir /home/auser/.vscode-server/cli --parent-process-id 19400 --on-host=127.0.0.1 --on-port",
-                    display=None,
-                    xauthority=None
+                    environ={}
             ),
             stop_idle_sessions.ps.Process(
                     pid=19495,
                     cmdline="sh /home/auser/.vscode-server/cli/servers/Stable-f1a4fb101478ce6ec82fe9627c43efbf9e98c813/server/bin/code-server --connection-token=remotessh --accept-server-license-terms --start-server --enable-remote-auto-shutdown --socket-path=/tmp/code-a14f5532-361c-4951-866a-a9d687ea7ad6",
-                    display=None,
-                    xauthority=None
+                    environ={}
             ),
             stop_idle_sessions.ps.Process(
                     pid=19501,
                     cmdline="/home/auser/.vscode-server/cli/servers/Stable-f1a4fb101478ce6ec82fe9627c43efbf9e98c813/server/node /home/auser/.vscode-server/cli/servers/Stable-f1a4fb101478ce6ec82fe9627c43efbf9e98c813/server/out/server-main.js --connection-token=remotessh --accept-server-license-terms --start-server --enable-remote-auto-shutdown --socket-path=/tmp/code-a14f5532-361c-4951-866a-a9d687ea7ad6",
-                    display=None,
-                    xauthority=None
+                    environ={}
             ),
             stop_idle_sessions.ps.Process(
                     pid=19735,
                     cmdline="/home/auser/.vscode-server/cli/servers/Stable-f1a4fb101478ce6ec82fe9627c43efbf9e98c813/server/node /home/auser/.vscode-server/cli/servers/Stable-f1a4fb101478ce6ec82fe9627c43efbf9e98c813/server/out/bootstrap-fork --type=ptyHost --logsPath /home/auser/.vscode-server/data/logs/20241122T111553",
-                    display=None,
-                    xauthority=None
+                    environ={}
             ),
             stop_idle_sessions.ps.Process(
                     pid=20164,
                     cmdline="/home/auser/.vscode-server/cli/servers/Stable-f1a4fb101478ce6ec82fe9627c43efbf9e98c813/server/node --dns-result-order=ipv4first /home/auser/.vscode-server/cli/servers/Stable-f1a4fb101478ce6ec82fe9627c43efbf9e98c813/server/out/bootstrap-fork --type=extensionHost --transformURIs --useHostProxy=false",
-                    display=None,
-                    xauthority=None
+                    environ={}
             ),
             stop_idle_sessions.ps.Process(
                     pid=20175,
                     cmdline="/home/auser/.vscode-server/cli/servers/Stable-f1a4fb101478ce6ec82fe9627c43efbf9e98c813/server/node /home/auser/.vscode-server/cli/servers/Stable-f1a4fb101478ce6ec82fe9627c43efbf9e98c813/server/out/bootstrap-fork --type=fileWatcher",
-                    display=None,
-                    xauthority=None
+                    environ={}
             ),
             stop_idle_sessions.ps.Process(
                     pid=25109,
                     cmdline="sleep 180",
-                    display=None,
-                    xauthority=None
+                    environ={}
             )
         ]
 
@@ -340,8 +329,7 @@ class Scenario2LoopbackConnectionTestCase(test_ss.LoopbackConnectionTestCase):
                         processes=[stop_idle_sessions.ps.Process(
                             pid=19015,
                             cmdline="",
-                            display=None,
-                            xauthority=None
+                            environ={}
                         )]
                     ),
                     server=stop_idle_sessions.ss.Socket(
@@ -350,8 +338,7 @@ class Scenario2LoopbackConnectionTestCase(test_ss.LoopbackConnectionTestCase):
                         processes=[stop_idle_sessions.ps.Process(
                             pid=19453,
                             cmdline="",
-                            display=None,
-                            xauthority=None
+                            environ={}
                         )]
                     )
             ),
@@ -362,8 +349,7 @@ class Scenario2LoopbackConnectionTestCase(test_ss.LoopbackConnectionTestCase):
                         processes=[stop_idle_sessions.ps.Process(
                             pid=20985,
                             cmdline="",
-                            display=None,
-                            xauthority=None
+                            environ={}
                         )]
                     ),
                     server=stop_idle_sessions.ss.Socket(
@@ -372,8 +358,7 @@ class Scenario2LoopbackConnectionTestCase(test_ss.LoopbackConnectionTestCase):
                         processes=[stop_idle_sessions.ps.Process(
                             pid=20272,
                             cmdline="",
-                            display=None,
-                            xauthority=None
+                            environ={}
                         )]
                     )
             )

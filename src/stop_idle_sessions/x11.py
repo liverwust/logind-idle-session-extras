@@ -5,7 +5,7 @@ from collections import defaultdict
 from datetime import timedelta
 import os
 import re
-from typing import List, Mapping, Optional, Set, Tuple
+from typing import List, Mapping, Optional, Set, Tuple, Union
 
 import Xlib.display
 import Xlib.error
@@ -85,6 +85,52 @@ class X11SessionProcesses:
 
         return resulting_list
 
+    def retrieve_least_display_idletime(self) -> Optional[Tuple[str,
+                                                                timedelta]]:
+        """Retrieve the smallest of DISPLAY idletimes, and the DISPLAY itself
+
+        Why the smallest? We want to be as optimistic as possible about idle
+        times to keep from terminating user processes without a good reason.
+        Even if there is, say, a rogue process in a VNC session which is
+        connected to some external place via X11 forwarding, we would rather
+        that idletime be checked against both (perhaps surprisingly) than to
+        incorrectly terminate a non-idle session.
+
+        The first return value is the DISPLAY string, and the second is its
+        idletime.
+        """
+
+        # Arbitrarily keep track of one (of possibly several)
+        # SessionParseErrors, and raise it if no timedeltas are ever
+        # successfully retrieved.
+        any_exception: Optional[SessionParseError] = None
+        result: Optional[Tuple[str, timedelta]] = None
+
+        for display, xauthority in self.get_all_candidates():
+            try:
+                candidate_idletime = X11SessionProcesses.retrieve_idle_time(
+                        display,
+                        xauthority
+                )
+                if result is None:
+                    result = (display, candidate_idletime)
+                elif candidate_idletime < result[1]:
+                    result = (display, candidate_idletime)
+
+            except SessionParseError as err:
+                # Given the choice: If an XAUTHORITY was determined, then
+                # trust the _new_ error. If no XAUTHORITY was determined, then
+                # keep the _old_ error (because it is very likely that a None
+                # XAUTHORITY would fail normally).
+                if any_exception is None or xauthority is not None:
+                    any_exception = err
+
+        if result is not None:
+            return result
+        if any_exception is not None:
+            raise any_exception
+        return None
+
     @staticmethod
     def parse_xvnc_cmdline(cmdline: str) -> Tuple[Optional[str],
                                                   Optional[str]]:
@@ -103,8 +149,8 @@ class X11SessionProcesses:
         return (None, None)
 
     @staticmethod
-    def retrieve_idle_time_ms(display: str,
-                              xauthority: Optional[str] = None) -> timedelta:
+    def retrieve_idle_time(display: str,
+                           xauthority: Optional[str] = None) -> timedelta:
         """Retrieve the idle time (in milliseconds) for the given X11 DISPLAY"""
 
         # Crazy hack to try and work around this issue, reported by a _different

@@ -30,14 +30,6 @@ class SessionProcess(NamedTuple):
     # (i.e., whether Process.pid == Session.leader_pid)
     leader: bool
 
-    # The value of the DISPLAY environment variable for this particular
-    # process, or None if none was assigned
-    display: Optional[str]
-
-    # The idletime (expressed as a timedelta) reported by the X11 Screen Saver
-    # extension for this DISPLAY (or None)
-    display_idle: Optional[timedelta]
-
     # A (possibly empty) list of backend processes that this particular
     # process has tunneled back into
     tunneled_processes: List[stop_idle_sessions.ps.Process]
@@ -62,6 +54,14 @@ class Session(NamedTuple):
 
     # The TTY or PTY which is assigned to this session (or None)
     tty: Optional[stop_idle_sessions.tty.TTY]
+
+    # The value of the DISPLAY environment variable for this particular
+    # process, or None if none was assigned
+    display: Optional[str]
+
+    # The idletime (expressed as a timedelta) reported by the X11 Screen Saver
+    # extension for this DISPLAY (or None if there was no DISPLAY)
+    display_idle: Optional[timedelta]
 
     # The symbolic username corresponding to session.uid
     username: str
@@ -114,6 +114,8 @@ def load_sessions() -> List[Session]:
     sessions: List[Session] = []
     for logind_session in logind_sessions:
         try:
+            display_info = stop_idle_sessions.x11.X11SessionProcesses()
+
             if logind_session.uid not in resolved_usernames:
                 username = stop_idle_sessions.getent.uid_to_username(
                         logind_session.uid
@@ -126,6 +128,7 @@ def load_sessions() -> List[Session]:
             )
             for process in ps_table:
                 tunneled_processes: List[stop_idle_sessions.ps.Process] = []
+                display_info.add(process)
 
                 # Associate Processes thru loopback to other Processes
                 for loopback_connection in loopback_connections:
@@ -137,19 +140,9 @@ def load_sessions() -> List[Session]:
                                 if not server_process in tunneled_processes:
                                     tunneled_processes.append(server_process)
 
-                display_idle: Optional[timedelta] = None
-                if process.display is not None:
-                    idle_ms = stop_idle_sessions.x11.retrieve_idle_time_ms(
-                            process.display,
-                            process.xauthority
-                    )
-                    display_idle = timedelta(milliseconds=idle_ms)
-
                 session_processes.append(SessionProcess(
                         process=process,
                         leader=(process.pid == logind_session.leader),
-                        display=process.display,
-                        display_idle=display_idle,
                         tunneled_processes=tunneled_processes,
                         tunneled_sessions=[]
                 ))
@@ -160,12 +153,26 @@ def load_sessions() -> List[Session]:
                         logind_session.tty
                 )
 
-            sessions.append(Session(
-                    session=logind_session,
-                    tty=session_tty,
-                    username=resolved_usernames[logind_session.uid],
-                    processes=session_processes
-            ))
+            display_result = display_info.retrieve_least_display_idletime()
+
+            if display_result is not None:
+                sessions.append(Session(
+                        session=logind_session,
+                        tty=session_tty,
+                        display=display_result[0],
+                        display_idle=display_result[1],
+                        username=resolved_usernames[logind_session.uid],
+                        processes=session_processes
+                ))
+            else:
+                sessions.append(Session(
+                        session=logind_session,
+                        tty=session_tty,
+                        display=None,
+                        display_idle=None,
+                        username=resolved_usernames[logind_session.uid],
+                        processes=session_processes
+                ))
 
         except SessionParseError as err:
             logger.warning('Could not successfully parse information related '

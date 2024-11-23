@@ -1,16 +1,20 @@
+"""Standard setup.py for setuptools"""
+
+from pathlib import Path
 from setuptools import setup
 
 # https://packaging.python.org/en/latest/guides/making-a-pypi-friendly-readme/
 # read the contents of your README file
-from pathlib import Path
 this_directory = Path(__file__).parent
 long_description = (this_directory / "README.md").read_text()
 
 setup(
     name="stop-idle-sessions",
-    version="0.6.16",
-    description=("Refresh systemd-logind idle timeouts based on supplemental "
-                 "user activity (e.g., VNC tunnel)"),
+    version="0.7.0",
+    description=("Stop idle `systemd-logind` sessions to prevent interactive "
+                 "access from unattended terminals. E.g., a laptop left "
+                 "unlocked in a coffee shop, with an SSH session into an "
+                 "internal network resource."),
     long_description=long_description,
     long_description_content_type='text/markdown',
     author="Louis Wust",
@@ -41,10 +45,5 @@ setup(
         "psutil >= 5.4.3",
         "python-xlib >= 0.33"
     ],
-    entry_points={
-        'console_scripts': [
-            'stop-idle-sessions = stop_idle_sessions.main:just_print'
-        ]
-    },
     python_requires=">= 3.6"
 )

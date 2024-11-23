@@ -1,6 +1,7 @@
 """Main logic for the stop-idle-session loop"""
 
 
+import argparse
 from datetime import timedelta
 from itertools import product
 import logging
@@ -208,8 +209,28 @@ def load_sessions() -> List[Session]:
     return sessions
 
 
-# TODO: get rid of this
-def just_print():
-    """Just use logging to print some stuff"""
-    logging.basicConfig(level=logging.DEBUG)
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(
+            description=("Stop idle `systemd-logind` sessions to prevent "
+                         "interactive access from unattended terminals. "
+                         "E.g., a laptop left unlocked in a coffee shop, "
+                         "with an SSH session into an internal network "
+                         "resource.")
+    )
+    parser.add_argument('-n', '--dry-run', action='store_true',
+                        help=("Don't actually take any actions, but just log "
+                              "(to stdout, not syslog) what would have "
+                              "happened"))
+    parser.add_argument('-v', '--verbose', action='store_true',
+                        help="Increase verbosity to incorporate debug logs "
+                             "(either to stdout during dry-run, or syslog "
+                             "normally)")
+    parser.add_argument('-c', '--config-file', action='store',
+                        default="/etc/stop-idle-sessions.conf",
+                        help="Override the location of the configuration INI "
+                             "format file")
+
+    args = parser.parse_args()
+    if args.verbose:
+        logging.basicConfig(level=logging.DEBUG)
     load_sessions()

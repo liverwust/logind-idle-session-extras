@@ -211,6 +211,7 @@ def load_sessions() -> List[Session]:
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
+            prog='/usr/libexec/platform-python -m stop_idle_sessions.main',
             description=("Stop idle `systemd-logind` sessions to prevent "
                          "interactive access from unattended terminals. "
                          "E.g., a laptop left unlocked in a coffee shop, "

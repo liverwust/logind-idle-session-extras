@@ -209,6 +209,40 @@ def load_sessions() -> List[Session]:
     return sessions
 
 
+def skip_ineligible_session(session: Session,
+                            excluded_users: Optional[List[str]] = None) -> bool:
+    """Check whether a session is ineligible for idleness timeout enforcement
+
+    Returns True if this session meets any of the criteria for being
+    "ineligible" (see README.md) and should not be processed further. If
+    False, then the caller should continue processing.
+    """
+
+    # Graphical sessions should be protected by screensavers, not idle
+    # timeouts. (_Tunneled_ graphical sessions are a different story -- see
+    # README.md for details.)
+    # https://github.com/systemd/systemd/blob/v256.8/src/login/logind-session.c#L1650
+    if session.session.session_type in ('x11', 'wayland', 'mir'):
+        return True
+
+    # systemd-logind sessions without an assigned teletype (TTY/PTY) which
+    # represent "noninteractive" sessions.
+    if session.tty is None:
+        return True
+
+    # systemd-logind sessions belonging to one of the "excluded_users" in the
+    # provided list (if any).
+    if excluded_users is not None and session.username in excluded_users:
+        return True
+
+    # systemd-logind session whose Scope Leader has been terminated. See
+    # README.md for a discussion of why this is relevant.
+    if session.session.leader == 0:
+        return True
+
+    return False
+
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
             prog='/usr/libexec/platform-python -m stop_idle_sessions.main',

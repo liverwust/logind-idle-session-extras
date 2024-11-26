@@ -27,6 +27,11 @@ class TTY:
         else:
             raise SessionParseError(f'invalid shortname for tty/pts: {name}')
 
+    def __eq__(self, other):
+        if not hasattr(other, 'name'):
+            return False
+        return self.name == other.name
+
     @property
     def name(self) -> str:
         """Short name of the TTY (e.g., 'pts/4')"""

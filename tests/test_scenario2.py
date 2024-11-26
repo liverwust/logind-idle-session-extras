@@ -382,7 +382,7 @@ class Scenario2MainLoopTestCase(test_main.MainLoopTestCase):
                     session_id="13",
                     session_type="tty",
                     uid=1000,
-                    tty=None,
+                    tty="",
                     leader=19012,
                     scope="session-13.scope",
             ),
@@ -472,6 +472,14 @@ class Scenario2MainLoopTestCase(test_main.MainLoopTestCase):
                        13890, 13900, 13904, 13907, 13911, 13954, 13988])
         }
 
+    def _mock_username_mapping(self) -> Mapping[int, str]:
+        """Convert numeric UIDs to symbolic usernames"""
+        return {42: 'gdm', 1000: 'auser', 1001: 'ansible'}
+
+    def _mock_excluded_users(self) -> List[str]:
+        """Supplement session assertion testing with a set of excluded users"""
+        return ["ansible"]
+
     def _register_expected_sessions(self) -> None:
         """Register the expected set of fully-fleshed-out session objects"""
         self.register_mock_session(
@@ -492,7 +500,8 @@ class Scenario2MainLoopTestCase(test_main.MainLoopTestCase):
                     20164: ([], []),
                     20175: ([], []),
                     28246: ([], [])
-                }
+                },
+                assert_skipped=True
         )
 
         self.register_mock_session(
@@ -505,7 +514,8 @@ class Scenario2MainLoopTestCase(test_main.MainLoopTestCase):
                     20982: ([], []),
                     20985: ([20272], ["7"]),
                     20986: ([], [])
-                }
+                },
+                assert_skipped=False
         )
 
         self.register_mock_session(
@@ -522,7 +532,8 @@ class Scenario2MainLoopTestCase(test_main.MainLoopTestCase):
                     28029: ([], []),
                     28030: ([], []),
                     28032: ([], [])
-                }
+                },
+                assert_skipped=True
         )
 
         self.register_mock_session(
@@ -540,7 +551,8 @@ class Scenario2MainLoopTestCase(test_main.MainLoopTestCase):
                     22106: ([], []),
                     22135: ([], []),
                     22136: ([], [])
-                }
+                },
+                assert_skipped=False
         )
 
         self.register_mock_session(
@@ -613,7 +625,8 @@ class Scenario2MainLoopTestCase(test_main.MainLoopTestCase):
                     20791: ([], []),
                     20805: ([], []),
                     20810: ([], [])
-                }
+                },
+                assert_skipped=False
         )
 
         self.register_mock_session(
@@ -654,5 +667,6 @@ class Scenario2MainLoopTestCase(test_main.MainLoopTestCase):
                     13911: ([], []),
                     13954: ([], []),
                     13988: ([], [])
-                }
+                },
+                assert_skipped=True
         )

@@ -92,11 +92,12 @@ of session are **exempt** from the idleness computation and will not be
 terminated by `stop-idle-sessions` enforcement:
 
 * **Graphical sessions.** Both local (GDM) and remote (VNC) sessions are
-  exempted from idleness computation and enforcement. They aren't necessarily
-  _ignored_ --- as [explained
-  later](#idleness-calculation-for-eligible-sessions), they might be referenced
-  when computing idleness of _other_ sessions --- but they themselves are not
-  subject to any scrutiny by `stop-idle-sessions`.
+  exempted from idleness computation and enforcement. Such environments have
+  their own ways to protect idle sessions (e.g., screensavers). They aren't
+  necessarily _ignored_ --- as
+  [explained later](#idleness-calculation-for-eligible-sessions), they might be
+  referenced when computing idleness of _other_ sessions --- but they
+  themselves are not subject to any scrutiny by `stop-idle-sessions`.
 
   **Note:** interestingly, running a `vncserver -localhost` command does NOT
   launch a proper graphical session. An Xvnc instance will run inside of the

@@ -786,6 +786,14 @@ class Scenario1MainLoopTestCase(test_main.MainLoopTestCase):
                        10518])
         }
 
+    def _mock_username_mapping(self) -> Mapping[int, str]:
+        """Convert numeric UIDs to symbolic usernames"""
+        return {0: 'root', 42: 'gdm', 1002: 'auser'}
+
+    def _mock_excluded_users(self) -> List[str]:
+        """Supplement session assertion testing with a set of excluded users"""
+        return []
+
     def _register_expected_sessions(self) -> None:
         """Register the expected set of fully-fleshed-out session objects"""
         self.register_mock_session(
@@ -855,7 +863,8 @@ class Scenario1MainLoopTestCase(test_main.MainLoopTestCase):
                     953210: ([], []),
                     953212: ([], []),
                     953217: ([], [])
-                }
+                },
+                assert_skipped=False
         )
 
         self.register_mock_session(
@@ -923,7 +932,8 @@ class Scenario1MainLoopTestCase(test_main.MainLoopTestCase):
                     1259632: ([], []),
                     1259638: ([], []),
                     1259640: ([], [])
-                }
+                },
+                assert_skipped=False
         )
 
         self.register_mock_session(
@@ -936,7 +946,8 @@ class Scenario1MainLoopTestCase(test_main.MainLoopTestCase):
                     1050298: ([], []),
                     1256518: ([952570], ["1267"]),
                     1256520: ([], []),
-                }
+                },
+                assert_skipped=False
         )
 
         self.register_mock_session(
@@ -979,5 +990,6 @@ class Scenario1MainLoopTestCase(test_main.MainLoopTestCase):
                     10494: ([], []),
                     10495: ([], []),
                     10518: ([], []),
-                }
+                },
+                assert_skipped=True
         )

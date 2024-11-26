@@ -2,7 +2,7 @@
 
 
 from ipaddress import IPv4Address, IPv6Address
-from typing import Callable, List, Mapping, Optional, Set, Union, Tuple
+from typing import Callable, Dict, List, Mapping, Optional, Set, Union, Tuple
 from unittest import TestCase, TestSuite
 from unittest.mock import Mock, patch
 
@@ -34,6 +34,14 @@ class MainLoopTestCase(TestCase):
         """Subclasses should override this method"""
         raise NotImplementedError('_mock_map_scope_processes')
 
+    def _mock_username_mapping(self) -> Mapping[int, str]:
+        """Subclasses should override this method"""
+        raise NotImplementedError('_mock_username_mapping')
+
+    def _mock_excluded_users(self) -> List[str]:
+        """Subclasses should override this method"""
+        raise NotImplementedError('_mock_excluded_users')
+
     def _register_expected_sessions(self) -> None:
         """Subclasses should override this method"""
         raise NotImplementedError('_expected_sessions')
@@ -48,7 +56,7 @@ class MainLoopTestCase(TestCase):
     def create_mock_logind_session(session_id: str,
                                    session_type: str,
                                    uid: int,
-                                   tty: Optional[str],
+                                   tty: str,
                                    leader: int,
                                    scope: str):
         """Generate a Mock representing a logind session"""
@@ -111,7 +119,8 @@ class MainLoopTestCase(TestCase):
                               scope: str,
                               pids_and_tunnels: Mapping[int,
                                                         Tuple[List[int],
-                                                              List[str]]]) -> None:
+                                                              List[str]]],
+                              assert_skipped: bool) -> None:
         """Generate a Mock representing a parsed session
 
         The strange type of pids_and_tunnels is a mapping from client PIDs,
@@ -132,12 +141,17 @@ class MainLoopTestCase(TestCase):
         session.session.session_id = session_id
         session.session.session_type = session_type
         session.session.uid = uid
-        session.session.tty = tty
         session.session.scope = scope
         session.__eq__ = MainLoopTestCase._mock_session_eq
 
-        session.tty = Mock()
-        session.tty.name = tty
+        if tty is None:
+            session.session.tty = ""
+            session.tty = None
+        else:
+            session.session.tty = tty
+            session.tty = Mock()
+            session.tty.name = tty
+            session.tty.__eq__ = MainLoopTestCase._mock_tty_eq
 
         session.processes = []
         for client_pid, tunnel_spec in pids_and_tunnels.items():
@@ -169,6 +183,7 @@ class MainLoopTestCase(TestCase):
 
         # Cache this object to allow for resolution; don't return it
         self._mocked_session_objects.append(session)
+        self._mocked_session_skip_assertions[session_id] = assert_skipped
 
     #
     # Here are the actual test case methods -- these aren't usually overridden
@@ -176,6 +191,7 @@ class MainLoopTestCase(TestCase):
 
     def setUp(self):
         self._mocked_session_objects = []
+        self._mocked_session_skip_assertions = {}
 
         self._mocked_get_logind_sessions = Mock(
                 side_effect=self._mock_get_logind_sessions
@@ -217,12 +233,16 @@ class MainLoopTestCase(TestCase):
         tty_patcher.start()
         self.addCleanup(tty_patcher.stop)
 
-        null_username_resolver_patcher = patch(
-                'stop_idle_sessions.getent.uid_to_username',
-                new=Mock(return_value=None)
+        self._mocked_uid_to_username = Mock(
+                side_effect=self._mock_uid_to_username
         )
-        null_username_resolver_patcher.start()
-        self.addCleanup(null_username_resolver_patcher.stop)
+
+        uid_to_username_patcher = patch(
+                'stop_idle_sessions.getent.uid_to_username',
+                new=self._mocked_uid_to_username
+        )
+        uid_to_username_patcher.start()
+        self.addCleanup(uid_to_username_patcher.stop)
 
         self._register_expected_sessions()
         self._resolve_tunneled_sessions()
@@ -241,12 +261,10 @@ class MainLoopTestCase(TestCase):
         for expected, actual in matched_pairs:
             self.assertEqual(expected.session.uid,
                              actual.session.uid)
-            self.assertEqual(expected.session.tty,
-                             actual.session.tty)
+            self.assertEqual(expected.tty,
+                            actual.tty)
             self.assertEqual(expected.session.scope,
                              actual.session.scope)
-            self.assertEqual(expected.tty.name,
-                             actual.tty.name)
 
             matched_pid_pairs = matchup_list_sets(expected.processes,
                                                   actual.processes)
@@ -277,6 +295,26 @@ class MainLoopTestCase(TestCase):
 
         self.assertEqual(len(matched_pairs), len(expected_sessions))
         self.assertEqual(len(matched_pairs), len(actual_sessions))
+
+    def test_session_assertions(self):
+        """Ensure that sessions trigger the appropriate assertions"""
+
+        for session in stop_idle_sessions.main.load_sessions():
+            if self._mocked_session_skip_assertions[session.session.session_id]:
+                self.assertTrue(
+                        stop_idle_sessions.main.skip_ineligible_session(
+                            session,
+                            self._mock_excluded_users()
+                        )
+                )
+            else:
+                self.assertFalse(
+                        stop_idle_sessions.main.skip_ineligible_session(
+                            session,
+                            self._mock_excluded_users()
+                        )
+                )
+
 
     #
     # Internal methods used by test cases -- these should not be overridden
@@ -309,6 +347,14 @@ class MainLoopTestCase(TestCase):
         return me.session.session_id == other.session.session_id
 
     @staticmethod
+    def _mock_tty_eq(*args, **_):
+        """Reimplementation of l_i_s_e.tty.TTY.__eq__"""
+        me, other = args
+        if not hasattr(other, 'name'):
+            return False
+        return me.name == other.name
+
+    @staticmethod
     def _mock_tty(return_mock: Optional[Mock] = None) -> Callable[[str], Mock]:
         """Factory function to create tty.TTY constructor functions"""
 
@@ -339,6 +385,12 @@ class MainLoopTestCase(TestCase):
 
         raise KeyError(f'could not find a scope for path {scope_path}')
 
+    def _mock_uid_to_username(self, uid: int) -> str:
+        """Map a user ID to its corresponding (mocked) username"""
+
+        return self._mock_username_mapping()[uid]
+
+
     def _resolve_tunneled_sessions(self):
         """Revisit the mocked session objects and link tunneled sessions"""
 
@@ -364,8 +416,14 @@ class MainLoopTestCase(TestCase):
     # The mocked ss.find_loopback_connections which will provide connections
     _mocked_find_loopback_connections: Mock
 
-    # Cached set of mocked main.Session objects; used to resolve sesssion_ids
+    # The mocked getent.uid_to_username which will map uids to names
+    _mocked_uid_to_username: Mock
+
+    # Registered set of mocked Session objects; used to resolve sesssion_ids
     _mocked_session_objects: List[Mock]
+
+    # Assertion booleans related to the registered _mocked_session_objects
+    _mocked_session_skip_assertions: Dict[str, bool]
 
 
 def load_tests(*_):

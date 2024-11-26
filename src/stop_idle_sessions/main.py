@@ -223,21 +223,30 @@ def skip_ineligible_session(session: Session,
     # README.md for details.)
     # https://github.com/systemd/systemd/blob/v256.8/src/login/logind-session.c#L1650
     if session.session.session_type in ('x11', 'wayland', 'mir'):
+        logger.debug('Skipping graphical session id=%s',
+                     session.session.session_id)
         return True
 
     # systemd-logind sessions without an assigned teletype (TTY/PTY) which
     # represent "noninteractive" sessions.
     if session.tty is None:
+        logger.debug('Skipping noninteractive session id=%s',
+                     session.session.session_id)
         return True
 
     # systemd-logind sessions belonging to one of the "excluded_users" in the
     # provided list (if any).
     if excluded_users is not None and session.username in excluded_users:
+        logger.debug('Skipping session id=%s owned by excluded user %s',
+                     session.session.session_id,
+                     session.username)
         return True
 
     # systemd-logind session whose Scope Leader has been terminated. See
     # README.md for a discussion of why this is relevant.
     if session.session.leader == 0:
+        logger.debug('Skipping "lingering" (leader=pid 0) session id=%s',
+                     session.session.session_id)
         return True
 
     return False

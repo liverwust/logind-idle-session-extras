@@ -777,19 +777,36 @@ class Scenario1MainLoopTestCase(test_main.MainLoopTestCase):
         """Input data to mock out the ps and cgroup interface module"""
 
         if scope_path == "/user.slice/user-1002.slice/session-1267.scope":
-            return list(map(lambda pid: stop_idle_sessions.ps.Process(pid=pid,
+            pids = list(map(lambda pid: stop_idle_sessions.ps.Process(pid=pid,
                                                                       cmdline="",
                                                                       environ={}),
-                            [772211, 952570, 952581, 952582, 952591, 952592,
-                             952644, 952649, 952652, 952656, 952663, 952715,
-                             952727, 952766, 952768, 952770, 952774, 952775,
-                             952777, 952779, 952805, 952817, 952819, 952837,
-                             952841, 952853, 952861, 952868, 952875, 952885,
-                             952888, 952889, 952890, 952891, 952892, 952893,
-                             952894, 952895, 952898, 952904, 952905, 952907,
-                             952909, 952910, 952911, 952913, 952919, 952921,
-                             952935, 952941, 952959, 953009, 953028, 953050,
-                             953201, 953207, 953209, 953210, 953212, 953217]))
+                            [772211, 952582, 952591, 952592, 952644, 952649,
+                             952652, 952656, 952663, 952715, 952727, 952766,
+                             952768, 952770, 952774, 952775, 952777, 952779,
+                             952805, 952817, 952819, 952837, 952841, 952853,
+                             952861, 952868, 952875, 952885, 952888, 952889,
+                             952890, 952891, 952892, 952893, 952894, 952895,
+                             952898, 952904, 952905, 952907, 952909, 952910,
+                             952911, 952913, 952919, 952921, 952935, 952941,
+                             952959, 953009, 953028, 953050, 953201, 953207,
+                             953209, 953210, 953212, 953217]))
+
+            pids.append(stop_idle_sessions.ps.Process(
+                    pid=952570,
+                    cmdline=("/usr/bin/Xvnc :1 -auth /u/wk/auser/.Xauthority "
+                             "-desktop computer:1 (auser) -fp "
+                             "catalogue:/etc/X11/fontpath.d -geometry "
+                             "1024x768 -pn -rfbauth /u/wk/auser/.vnc/passwd "
+                             "-rfbport 5901 -localhost"),
+                    environ={}
+            ))
+            pids.append(stop_idle_sessions.ps.Process(
+                    pid=952581,
+                    cmdline="/bin/sh /u/wk/auser/.vnc/xstartup",
+                    environ={'DISPLAY': ":1"}
+            ))
+
+            return pids
 
         if scope_path == "/user.slice/user-0.slice/session-1301.scope":
             return list(map(lambda pid: stop_idle_sessions.ps.Process(pid=pid,
@@ -839,7 +856,7 @@ class Scenario1MainLoopTestCase(test_main.MainLoopTestCase):
         if display == ':0':
             return datetime.timedelta(seconds=47 * 60)
         if display == ':1':
-            return datetime.timedelta(seconds=60)
+            return datetime.timedelta(seconds=35)
 
         raise KeyError(f'Unexpected DISPLAY argument: {display}')
 
@@ -918,7 +935,7 @@ class Scenario1MainLoopTestCase(test_main.MainLoopTestCase):
                 session=logind_sessions[0],
                 tty=self._mock_tty('pts/2'),
                 display=':1',
-                display_idle=datetime.timedelta(seconds=60),
+                display_idle=datetime.timedelta(seconds=35),
                 username='auser',
                 processes=[stop_idle_sessions.main.SessionProcess(
                                 process=stop_idle_sessions.ps.Process(pid=772211,
@@ -1885,8 +1902,8 @@ class Scenario1MainLoopTestCase(test_main.MainLoopTestCase):
 
         return [
                 # session ID = 1267
-                # 1-minute idle determined by DISPLAY=:1
-                (False, False, datetime.timedelta(seconds=60)),
+                # 35-seconde idle determined by DISPLAY=:1
+                (False, False, datetime.timedelta(seconds=35)),
 
                 # session ID = 1301
                 # 31-minute idle (terminated) based on pty atime/mtime
@@ -1894,7 +1911,7 @@ class Scenario1MainLoopTestCase(test_main.MainLoopTestCase):
 
                 # session ID = 1337
                 # 1-minute idle determined by session 1267
-                (False, False, datetime.timedelta(seconds=60)),
+                (False, False, datetime.timedelta(seconds=35)),
 
                 # session ID = c1
                 # 47-minute idle (NOT terminated) based on DISPLAY=:0

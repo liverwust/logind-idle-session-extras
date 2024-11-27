@@ -2,7 +2,7 @@
 
 
 import argparse
-from datetime import timedelta
+import datetime
 from itertools import product
 import logging
 import sys
@@ -62,7 +62,7 @@ class Session(NamedTuple):
 
     # The idletime (expressed as a timedelta) reported by the X11 Screen Saver
     # extension for this DISPLAY (or None if there was no DISPLAY)
-    display_idle: Optional[timedelta]
+    display_idle: Optional[datetime.timedelta]
 
     # The symbolic username corresponding to session.uid
     username: str
@@ -77,23 +77,6 @@ class Session(NamedTuple):
             return False
         return self.session.session_id == other.session.session_id
 
-
-#def check_ssh_session_tunnel(session: Session) -> bool:
-#    """Check whether an SSH session is tunneled to a backend session
-#
-#    This would be something like `ssh -L 5901:localhost:5901 <host>`. The Rule
-#    will detect a tunnel only so long as it is actually part of an active
-#    connection. A user needs to be connected to the client-side (and the
-#    server-side needs to have relayed that connection) in order for this to
-#    trigger. Simply _specifying_ that a tunnel should exists (-L) is not
-#    enough.
-#    """
-#
-#    for session_processes in session.processes:
-#        for tunnel_backend in session_processes.tunnels:
-#            if isinstance(tunnel_backend, Session):
-#                pass
-#
 
 # Constructing the tree involves many local variables, necessarily
 # pylint: disable-next=too-many-locals, too-many-branches
@@ -250,6 +233,92 @@ def skip_ineligible_session(session: Session,
         return True
 
     return False
+
+
+def compute_idleness_metric(session: Session,
+                            now: datetime.datetime,
+                            nested: bool = False) -> datetime.timedelta:
+    """Determine the most "optimistic" idleness metric for the given Session
+
+    By drawing from all of the potential sources of idleness/activity, find
+    the one which gives the user the most opportunity to keep their session
+    alive. For example, if the user's keystroke activity would indicate 10
+    minutes of idleness, but their tunneled VNC session experienced activity
+    in the past 5 minutes, then the overall idleness should only be reported
+    as 5 minutes.
+
+    Some data sources (e.g., a TTY's atime) provide an absolute timestamp
+    instead of a timedelta. The caller is expected to supply the current
+    timestamp (e.g., datetime.datetime.now() OR a fake value for testing) so
+    that such timestamps may be converted into a timedelta.
+
+    Idleness can involve the participation of a tunneled session. This
+    analysis should never need to extend past "depth two" -- e.g., the
+    idleness of an SSH session which has tunneled through to a VNC session may
+    depend on the idleness of the VNC session. _However_, we never need to
+    (and don't want to!) enter a recursive loop where a session relates to
+    itself, or two sessions relate circularly. As a protection against this,
+    the nested argument will keep this function from analyzing further Session
+    entries after the first one.
+    """
+
+    minimum_idle: Optional[datetime.timedelta] = None
+    determined_by: str = ""
+
+    # The atime on a TTY for a terminal session is touched whenever the user
+    # enters keyboard input.
+    if (session.tty is not None and (minimum_idle is None or
+                                     now - session.tty.atime < minimum_idle)):
+        minimum_idle = now - session.tty.atime
+        determined_by = f"atime on {session.tty.name}"
+
+    # The mtime on a TTY for a terminal session is touched whenever the user
+    # enters keyboard input (same as atime) *OR* whenever a program generates
+    # standard output/error onto the screen.
+    if (session.tty is not None and (minimum_idle is None or
+                                     now - session.tty.mtime < minimum_idle)):
+        minimum_idle = now - session.tty.atime
+        determined_by = f"mtime on {session.tty.name}"
+
+    # The idleness of a session which contains running some running X11 server
+    # (probably Xwayland or Xorg or Xvnc) can be influenced by the same
+    # activity metric tracked by the X11 Screen Saver extension.
+    if (session.display_idle is not None and (minimum_idle is None or
+                                              session.display_idle < minimum_idle)):
+        minimum_idle = session.display_idle
+        determined_by = f"X11 idleness on DISPLAY={session.display}"
+
+    # The idleness of a session which has tunneled into another session
+    # (primarily VNC over SSH) can be influenced by the tunneled session.
+    # However, as explained in the docstring, this must be guarded against
+    # recursive loops by enforcing a maximum depth of 2 (i.e., the outer
+    # session and the inner session).
+    # pylint: disable-next=too-many-nested-blocks
+    if not nested:
+        for session_process in session.processes:
+            for tunneled_session in session_process.tunneled_sessions:
+                if not skip_ineligible_session(tunneled_session):
+                    try:
+                        inner_idle = compute_idleness_metric(tunneled_session,
+                                                            now,
+                                                            nested=True)
+                        if minimum_idle is None or inner_idle < minimum_idle:
+                            minimum_idle = inner_idle
+                            determined_by = ("idleness of nested session " +
+                                             tunneled_session.session.session_id)
+                    except SessionParseError:
+                        # Just skip this attempt if it didn't work out
+                        pass
+
+    if minimum_idle is None:
+        raise SessionParseError('Could not identify an idle duration for ' +
+                                session.session.session_id)
+
+    logger.debug("Computed %s to have been idle for %d seconds based on %s",
+                 session.session.session_id,
+                 minimum_idle.total_seconds(),
+                 determined_by)
+    return minimum_idle
 
 
 if __name__ == "__main__":

@@ -1,13 +1,17 @@
 """Common logic for the main loop, shared across all scenarios"""
 
 
-from ipaddress import IPv4Address, IPv6Address
-from typing import Callable, Dict, List, Mapping, Optional, Set, Union, Tuple
+import datetime
+from typing import List, Optional
 from unittest import TestCase, TestSuite
 from unittest.mock import Mock, patch
 
 from stop_idle_sessions.list_set import matchup_list_sets
+import stop_idle_sessions.logind
 import stop_idle_sessions.main
+import stop_idle_sessions.ps
+import stop_idle_sessions.ss
+import stop_idle_sessions.tty
 
 
 class MainLoopTestCase(TestCase):
@@ -22,235 +26,97 @@ class MainLoopTestCase(TestCase):
     # Subclasses need to override these methods
     #
 
-    def _mock_get_logind_sessions(self) -> List[Mock]:
+    def _mock_get_all_sessions(self) -> List[stop_idle_sessions.logind.Session]:
         """Subclasses should override this method"""
-        raise NotImplementedError('_mock_get_logind_sessions')
+        raise NotImplementedError('_mock_get_all_sessions')
 
-    def _mock_find_loopback_connections(self) -> List[Mock]:
+    def _mock_find_loopback_connections(self) -> List[stop_idle_sessions.ss.LoopbackConnection]:
         """Subclasses should override this method"""
         raise NotImplementedError('_mock_find_loopback_connections')
 
-    def _mock_map_scope_processes(self) -> Mapping[str, Set[int]]:
+    def _mock_processes_in_scope_path(self,
+                                      scope_path: str) -> List[stop_idle_sessions.ps.Process]:
         """Subclasses should override this method"""
-        raise NotImplementedError('_mock_map_scope_processes')
+        assert isinstance(scope_path, str)
+        raise NotImplementedError('_mock_processes_in_scope_path')
 
-    def _mock_username_mapping(self) -> Mapping[int, str]:
+    def _mock_uid_to_username(self, uid: int) -> str:
         """Subclasses should override this method"""
-        raise NotImplementedError('_mock_username_mapping')
+        assert isinstance(uid, int)
+        raise NotImplementedError('_mock_uid_to_username')
 
-    def _mock_excluded_users(self) -> List[str]:
+    def _mock_retrieve_idle_time(self,
+                                 display: str,
+                                 xauthority: Optional[str]) -> Optional[datetime.timedelta]:
         """Subclasses should override this method"""
-        raise NotImplementedError('_mock_excluded_users')
+        assert isinstance(display, str)
+        assert xauthority is None or isinstance(xauthority, str)
+        raise NotImplementedError('_mock_retrieve_idle_time')
 
-    def _register_expected_sessions(self) -> None:
+    def _mock_tty(self, name: str) -> stop_idle_sessions.tty.TTY:
+        """Subclasses should override this method"""
+        assert isinstance(name, str)
+        raise NotImplementedError('_mock_tty')
+
+    def _excluded_users(self) -> List[str]:
+        """Subclasses should override this method"""
+        raise NotImplementedError('_excluded_users')
+
+    def _expected_sessions(self) -> List[stop_idle_sessions.main.Session]:
         """Subclasses should override this method"""
         raise NotImplementedError('_expected_sessions')
-
-    #
-    # Subclasses are encouraged to call these methods to construct Mocks
-    #
-
-    # Method signatures are useful for input validation, even if a LOT of them
-    # pylint: disable=too-many-positional-arguments, too-many-arguments
-    @staticmethod
-    def create_mock_logind_session(session_id: str,
-                                   session_type: str,
-                                   uid: int,
-                                   tty: str,
-                                   leader: int,
-                                   scope: str):
-        """Generate a Mock representing a logind session"""
-
-        session = Mock()
-        session.session_id = session_id
-        session.session_type = session_type
-        session.uid = uid
-        session.tty = tty
-        session.leader = leader
-        session.scope = scope
-        scope_path = f'/user.slice/user-{uid}.slice/{scope}'
-        session.scope_path = scope_path
-        return session
-
-    @staticmethod
-    def create_mock_loopback_connection(client_addr: Union[IPv4Address,
-                                                           IPv6Address],
-                                        client_port: int,
-                                        client_pids: List[int],
-                                        server_addr: Union[IPv4Address,
-                                                           IPv6Address],
-                                        server_port: int,
-                                        server_pids: List[int]):
-        """Generate a Mock representing an ss loopback connection"""
-
-        connection = Mock()
-
-        connection.client = Mock()
-        connection.client.addr = client_addr
-        connection.client.port = client_port
-        connection.client.processes = []
-        for client_pid in client_pids:
-            process_mock = Mock()
-            process_mock.pid = client_pid
-            process_mock.cmdline = ""
-            process_mock.environ = {}
-            process_mock.__eq__ = MainLoopTestCase._mock_process_eq
-            connection.client.processes.append(process_mock)
-
-        connection.server = Mock()
-        connection.server.addr = server_addr
-        connection.server.port = server_port
-        connection.server.processes = []
-        for server_pid in server_pids:
-            process_mock = Mock()
-            process_mock.pid = server_pid
-            process_mock.cmdline = ""
-            process_mock.environ = {}
-            process_mock.__eq__ = MainLoopTestCase._mock_process_eq
-            connection.server.processes.append(process_mock)
-
-        return connection
-
-    def register_mock_session(self,
-                              session_id: str,
-                              session_type: str,
-                              uid: int,
-                              tty: Optional[str],
-                              scope: str,
-                              pids_and_tunnels: Mapping[int,
-                                                        Tuple[List[int],
-                                                              List[str]]],
-                              assert_skipped: bool) -> None:
-        """Generate a Mock representing a parsed session
-
-        The strange type of pids_and_tunnels is a mapping from client PIDs,
-        into a list of their backend integer PIDs and (separately) a list of
-        their backend string session IDs.
-
-        Unlike the create_mock_* functions, this one does not return its
-        result. Instead, it saves it into a private array for later use.
-        Notably, before a test case attempts to compare against the expected
-        set of parsed sessions, it will run _resolve_tunneled_sessions and
-        thereby "link" the string session ID tunnels to their full Session
-        objects.
-        """
-
-        session = Mock()
-
-        session.session = Mock()
-        session.session.session_id = session_id
-        session.session.session_type = session_type
-        session.session.uid = uid
-        session.session.scope = scope
-        session.__eq__ = MainLoopTestCase._mock_session_eq
-
-        if tty is None:
-            session.session.tty = ""
-            session.tty = None
-        else:
-            session.session.tty = tty
-            session.tty = Mock()
-            session.tty.name = tty
-            session.tty.__eq__ = MainLoopTestCase._mock_tty_eq
-
-        session.processes = []
-        for client_pid, tunnel_spec in pids_and_tunnels.items():
-            process = Mock()
-
-            process.process = Mock()
-            process.process.pid = client_pid
-            process.process.cmdline = ""
-            process.process.environ = {}
-            process.process.__eq__ = MainLoopTestCase._mock_process_eq
-            process.__eq__ = MainLoopTestCase._mock_session_process_eq
-
-            process.tunneled_processes = []
-            for tunnel in tunnel_spec[0]:
-                backend_process = Mock()
-                backend_process.pid = tunnel
-                backend_process.cmdline = ""
-                backend_process.environ = {}
-                backend_process.__eq__ = MainLoopTestCase._mock_process_eq
-                process.tunneled_processes.append(backend_process)
-
-            process.tunneled_sessions = []
-            for tunnel in tunnel_spec[1]:
-                # This will be resolved to a mock Session object later, by
-                # the _resolve_tunneled_sessions method.
-                process.tunneled_sessions.append(tunnel)
-
-            session.processes.append(process)
-
-        # Cache this object to allow for resolution; don't return it
-        self._mocked_session_objects.append(session)
-        self._mocked_session_skip_assertions[session_id] = assert_skipped
 
     #
     # Here are the actual test case methods -- these aren't usually overridden
     #
 
     def setUp(self):
-        self._mocked_session_objects = []
-        self._mocked_session_skip_assertions = {}
-
-        self._mocked_get_logind_sessions = Mock(
-                side_effect=self._mock_get_logind_sessions
-        )
-
-        get_logind_sessions_patcher = patch(
+        get_all_sessions_patcher = patch(
                 'stop_idle_sessions.logind.get_all_sessions',
-                new=self._mocked_get_logind_sessions
+                new=Mock(side_effect=self._mock_get_all_sessions)
         )
-        get_logind_sessions_patcher.start()
-        self.addCleanup(get_logind_sessions_patcher.stop)
-
-        self._mocked_processes_in_scope_path = Mock(
-                side_effect=self._mock_processes_in_scope_path
-        )
-
-        processes_in_scope_path_patcher = patch(
-                'stop_idle_sessions.ps.processes_in_scope_path',
-                new=self._mocked_processes_in_scope_path
-        )
-        processes_in_scope_path_patcher.start()
-        self.addCleanup(processes_in_scope_path_patcher.stop)
-
-        self._mocked_find_loopback_connections = Mock(
-                side_effect=self._mock_find_loopback_connections
-        )
+        get_all_sessions_patcher.start()
+        self.addCleanup(get_all_sessions_patcher.stop)
 
         find_loopback_connections_patcher = patch(
                 'stop_idle_sessions.ss.find_loopback_connections',
-                new=self._mocked_find_loopback_connections
+                new=Mock(side_effect=self._mock_find_loopback_connections)
         )
         find_loopback_connections_patcher.start()
         self.addCleanup(find_loopback_connections_patcher.stop)
 
-        tty_patcher = patch(
-                'stop_idle_sessions.tty.TTY',
-                new=Mock(side_effect=MainLoopTestCase._mock_tty())
+        processes_in_scope_path_patcher = patch(
+                'stop_idle_sessions.ps.processes_in_scope_path',
+                new=Mock(side_effect=self._mock_processes_in_scope_path)
         )
-        tty_patcher.start()
-        self.addCleanup(tty_patcher.stop)
-
-        self._mocked_uid_to_username = Mock(
-                side_effect=self._mock_uid_to_username
-        )
+        processes_in_scope_path_patcher.start()
+        self.addCleanup(processes_in_scope_path_patcher.stop)
 
         uid_to_username_patcher = patch(
                 'stop_idle_sessions.getent.uid_to_username',
-                new=self._mocked_uid_to_username
+                new=Mock(side_effect=self._mock_uid_to_username)
         )
         uid_to_username_patcher.start()
         self.addCleanup(uid_to_username_patcher.stop)
 
-        self._register_expected_sessions()
-        self._resolve_tunneled_sessions()
+        retrieve_idle_time_patcher = patch(
+                'stop_idle_sessions.x11.X11SessionProcesses.retrieve_idle_time',
+                new=Mock(side_effect=self._mock_retrieve_idle_time)
+        )
+        retrieve_idle_time_patcher.start()
+        self.addCleanup(retrieve_idle_time_patcher.stop)
+
+        tty_patcher = patch(
+                'stop_idle_sessions.tty.TTY',
+                new=Mock(side_effect=self._mock_tty)
+        )
+        tty_patcher.start()
+        self.addCleanup(tty_patcher.stop)
 
     def test_parse_logind_sessions(self):
         """Ensure that the logind sessions are transformed appropriately"""
 
-        expected_sessions = self._mocked_session_objects
+        expected_sessions = self._expected_sessions()
         actual_sessions = stop_idle_sessions.main.load_sessions()
 
         matched_pairs = matchup_list_sets(expected_sessions,
@@ -261,8 +127,8 @@ class MainLoopTestCase(TestCase):
         for expected, actual in matched_pairs:
             self.assertEqual(expected.session.uid,
                              actual.session.uid)
-            self.assertEqual(expected.tty,
-                            actual.tty)
+            self.assertEqual(expected.tty.name,
+                             actual.tty.name)
             self.assertEqual(expected.session.scope,
                              actual.session.scope)
 
@@ -295,135 +161,6 @@ class MainLoopTestCase(TestCase):
 
         self.assertEqual(len(matched_pairs), len(expected_sessions))
         self.assertEqual(len(matched_pairs), len(actual_sessions))
-
-    def test_session_assertions(self):
-        """Ensure that sessions trigger the appropriate assertions"""
-
-        for session in stop_idle_sessions.main.load_sessions():
-            if self._mocked_session_skip_assertions[session.session.session_id]:
-                self.assertTrue(
-                        stop_idle_sessions.main.skip_ineligible_session(
-                            session,
-                            self._mock_excluded_users()
-                        )
-                )
-            else:
-                self.assertFalse(
-                        stop_idle_sessions.main.skip_ineligible_session(
-                            session,
-                            self._mock_excluded_users()
-                        )
-                )
-
-
-    #
-    # Internal methods used by test cases -- these should not be overridden
-    #
-
-    @staticmethod
-    def _mock_process_eq(*args, **_):
-        """Reimplementation of l_i_s_e.ps.Process.__eq__"""
-        me, other = args
-        if not hasattr(other, 'pid'):
-            return False
-        return me.pid == other.pid
-
-    @staticmethod
-    def _mock_session_process_eq(*args, **_):
-        """Reimplementation of l_i_s_e.main.SessionProcess.__eq__"""
-        me, other = args
-        if not hasattr(other, 'process'):
-            return False
-        return MainLoopTestCase._mock_process_eq(me.process, other.process)
-
-    @staticmethod
-    def _mock_session_eq(*args, **_):
-        """Reimplementation of l_i_s_e.main.Session.__eq__"""
-        me, other = args
-        if not hasattr(other, 'session'):
-            return False
-        if not hasattr(other.session, 'session_id'):
-            return False
-        return me.session.session_id == other.session.session_id
-
-    @staticmethod
-    def _mock_tty_eq(*args, **_):
-        """Reimplementation of l_i_s_e.tty.TTY.__eq__"""
-        me, other = args
-        if not hasattr(other, 'name'):
-            return False
-        return me.name == other.name
-
-    @staticmethod
-    def _mock_tty(return_mock: Optional[Mock] = None) -> Callable[[str], Mock]:
-        """Factory function to create tty.TTY constructor functions"""
-
-        def _inner_mock_tty(tty_name: str) -> Mock:
-            if return_mock is None:
-                my_return_mock = Mock()
-            else:
-                my_return_mock = return_mock
-            my_return_mock.name = tty_name
-            return my_return_mock
-
-        return _inner_mock_tty
-
-    def _mock_processes_in_scope_path(self, scope_path: str) -> List[Mock]:
-        """Obtain a mocked set of process objects for a given scope path"""
-
-        scope_processes = self._mock_map_scope_processes()
-        for candidate_session_id, candidate_pids in scope_processes.items():
-            if scope_path.endswith(f'session-{candidate_session_id}.scope'):
-                processes = []
-                for pid in sorted(candidate_pids):
-                    process = Mock()
-                    process.pid = pid
-                    process.cmdline = ""
-                    process.environ = {}
-                    processes.append(process)
-                return processes
-
-        raise KeyError(f'could not find a scope for path {scope_path}')
-
-    def _mock_uid_to_username(self, uid: int) -> str:
-        """Map a user ID to its corresponding (mocked) username"""
-
-        return self._mock_username_mapping()[uid]
-
-
-    def _resolve_tunneled_sessions(self):
-        """Revisit the mocked session objects and link tunneled sessions"""
-
-        # Yes, this is a deeply-nested structure; nothing to be done about it
-        # pylint: disable-next=too-many-nested-blocks
-        for session in self._mocked_session_objects:
-            for process in session.processes:
-                for index, tunnel in enumerate(process.tunneled_sessions):
-                    for find_session in self._mocked_session_objects:
-                        if tunnel == find_session.session.session_id:
-                            process.tunneled_sessions[index] = find_session
-
-    #
-    # Internal attributes used by test cases -- subclasses shouldn't use these
-    #
-
-    # The mocked logind.get_all_sessions which will provide sessions
-    _mocked_get_logind_sessions: Mock
-
-    # The mocked ps.processes_in_scope_path which will list members of cgroups
-    _mocked_processes_in_scope_path: Mock
-
-    # The mocked ss.find_loopback_connections which will provide connections
-    _mocked_find_loopback_connections: Mock
-
-    # The mocked getent.uid_to_username which will map uids to names
-    _mocked_uid_to_username: Mock
-
-    # Registered set of mocked Session objects; used to resolve sesssion_ids
-    _mocked_session_objects: List[Mock]
-
-    # Assertion booleans related to the registered _mocked_session_objects
-    _mocked_session_skip_assertions: Dict[str, bool]
 
 
 def load_tests(*_):

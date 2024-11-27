@@ -27,10 +27,6 @@ class SessionProcess(NamedTuple):
     # Generic Process details for this SessionProcess
     process: stop_idle_sessions.ps.Process
 
-    # Whether this process has been marked as the "Leader" of its session
-    # (i.e., whether Process.pid == Session.leader_pid)
-    leader: bool
-
     # A (possibly empty) list of backend processes that this particular
     # process has tunneled back into
     tunneled_processes: List[stop_idle_sessions.ps.Process]
@@ -126,7 +122,6 @@ def load_sessions() -> List[Session]:
 
                 session_processes.append(SessionProcess(
                         process=process,
-                        leader=(process.pid == logind_session.leader),
                         tunneled_processes=tunneled_processes,
                         tunneled_sessions=[]
                 ))
@@ -293,22 +288,21 @@ def compute_idleness_metric(session: Session,
     # However, as explained in the docstring, this must be guarded against
     # recursive loops by enforcing a maximum depth of 2 (i.e., the outer
     # session and the inner session).
-    # pylint: disable-next=too-many-nested-blocks
     if not nested:
         for session_process in session.processes:
             for tunneled_session in session_process.tunneled_sessions:
-                if not skip_ineligible_session(tunneled_session):
-                    try:
-                        inner_idle = compute_idleness_metric(tunneled_session,
-                                                            now,
-                                                            nested=True)
-                        if minimum_idle is None or inner_idle < minimum_idle:
-                            minimum_idle = inner_idle
-                            determined_by = ("idleness of nested session " +
-                                             tunneled_session.session.session_id)
-                    except SessionParseError:
-                        # Just skip this attempt if it didn't work out
-                        pass
+                # Do NOT check the inner session for "eligibility"
+                try:
+                    inner_idle = compute_idleness_metric(tunneled_session,
+                                                        now,
+                                                        nested=True)
+                    if minimum_idle is None or inner_idle < minimum_idle:
+                        minimum_idle = inner_idle
+                        determined_by = ("idleness of nested session " +
+                                            tunneled_session.session.session_id)
+                except SessionParseError:
+                    # Just skip this attempt if it didn't work out
+                    pass
 
     if minimum_idle is None:
         raise SessionParseError('Could not identify an idle duration for ' +

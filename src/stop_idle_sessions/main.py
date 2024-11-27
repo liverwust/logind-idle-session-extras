@@ -272,7 +272,7 @@ def compute_idleness_metric(session: Session,
     # standard output/error onto the screen.
     if (session.tty is not None and (minimum_idle is None or
                                      now - session.tty.mtime < minimum_idle)):
-        minimum_idle = now - session.tty.atime
+        minimum_idle = now - session.tty.mtime
         determined_by = f"mtime on {session.tty.name}"
 
     # The idleness of a session which contains running some running X11 server

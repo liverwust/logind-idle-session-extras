@@ -101,6 +101,11 @@ class Session:
         """'Fully-qualified' SystemD scope path for this Session"""
         return f"/user.slice/user-{self.uid}.slice/{self.scope}"
 
+    def kill_session_leader(self) -> None:
+        """Send appropriate signal(s) to the session leader to terminate it"""
+        # TODO: fix this!
+        raise NotImplementedError('TODO: fix this!')
+
 
 def get_all_sessions() -> List[Session]:
     """Proxy for the org.freedesktop.login1.Manager interface

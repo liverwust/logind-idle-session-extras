@@ -2,10 +2,11 @@
 
 
 import datetime
-from typing import List, Optional
+from typing import Dict, List, Optional, Tuple
 from unittest import TestCase, TestSuite
 from unittest.mock import Mock, patch
 
+from stop_idle_sessions.exception import SessionParseError
 from stop_idle_sessions.list_set import matchup_list_sets
 import stop_idle_sessions.logind
 import stop_idle_sessions.main
@@ -58,6 +59,10 @@ class MainLoopTestCase(TestCase):
         assert isinstance(name, str)
         raise NotImplementedError('_mock_tty')
 
+    def _now(self) -> datetime.datetime:
+        """Subclasses should override this method"""
+        raise NotImplementedError('_now')
+
     def _excluded_users(self) -> List[str]:
         """Subclasses should override this method"""
         raise NotImplementedError('_excluded_users')
@@ -66,6 +71,11 @@ class MainLoopTestCase(TestCase):
         """Subclasses should override this method"""
         raise NotImplementedError('_expected_sessions')
 
+    def _expected_results(self) -> List[Tuple[bool, bool,
+                                              Optional[datetime.timedelta]]]:
+        """Subclasses should override this method"""
+        raise NotImplementedError('_expected_results')
+
     #
     # Here are the actual test case methods -- these aren't usually overridden
     #
@@ -73,7 +83,7 @@ class MainLoopTestCase(TestCase):
     def setUp(self):
         get_all_sessions_patcher = patch(
                 'stop_idle_sessions.logind.get_all_sessions',
-                new=Mock(side_effect=self._mock_get_all_sessions)
+                new=Mock(side_effect=self._wrap_mock_get_all_sessions)
         )
         get_all_sessions_patcher.start()
         self.addCleanup(get_all_sessions_patcher.stop)
@@ -161,6 +171,88 @@ class MainLoopTestCase(TestCase):
 
         self.assertEqual(len(matched_pairs), len(expected_sessions))
         self.assertEqual(len(matched_pairs), len(actual_sessions))
+
+    def test_session_results(self):
+        """Ensure that each session exhibits the expected results
+
+        The tuple for _expected_results is as follows:
+          (skipped_exempt: bool, terminated: bool, idle_metric: timedelta)
+        """
+
+        actual_sessions = stop_idle_sessions.main.load_sessions()
+        expected_results = self._expected_results()
+        self.assertEqual(len(actual_sessions), len(expected_results))
+
+        for session, (skipped_exempt,
+                      terminated,
+                      idle_metric) in zip(actual_sessions,
+                                          expected_results):
+            actual_idle_metric: Optional[datetime.timedelta] = None
+
+            if idle_metric is None:
+                with self.assertRaises(SessionParseError):
+                    stop_idle_sessions.main.compute_idleness_metric(session,
+                                                                    self._now())
+            else:
+                actual_idle_metric = stop_idle_sessions.main.compute_idleness_metric(
+                        session,
+                        self._now()
+                )
+                self.assertAlmostEqual(idle_metric,
+                                       actual_idle_metric,
+                                       delta=datetime.timedelta(seconds=1))
+
+            if stop_idle_sessions.main.skip_ineligible_session(session):
+                self.assertTrue(skipped_exempt)
+            else:
+                self.assertFalse(skipped_exempt)
+
+                if actual_idle_metric is None:
+                    raise RuntimeError(f"For id={session.session.session_id}, "
+                                       f"indicated that it should not be "
+                                       f"skipped, but no timedelta provided")
+
+                if actual_idle_metric >= datetime.timedelta(seconds=15 * 60):
+                    session.session.kill_session_leader()
+
+                kill_mock = self._mocked_killed_session_leaders[session.session.session_id]
+                if terminated:
+                    kill_mock.assert_called_once()
+                else:
+                    kill_mock.assert_not_called()
+
+    #
+    # Internal methods used by test cases -- these should not be overridden
+    #
+
+    def _wrap_mock_get_all_sessions(self) -> List[stop_idle_sessions.logind.Session]:
+        """Wrap the _mock_get_all_sessions output to insert kill_session_leader
+
+        When this particular Mock is created and added to the mocks created by
+        the scenario, it needs to be tracked locally to provide assertions.
+        """
+
+        self._mocked_killed_session_leaders = {}
+
+        sessions = self._mock_get_all_sessions()
+        for session in sessions:
+            kill_mock = Mock()
+
+            self._mocked_killed_session_leaders[session.session_id] = kill_mock
+
+            # Python type checkers cannot detect that this returned session
+            # object is actually a Mock -- but Python itself certainly can.
+            mock_session: Mock = session   # type: ignore
+            mock_session.configure_mock(kill_session_leader=kill_mock)
+
+        return sessions
+
+    #
+    # Internal attributes used by test cases -- subclasses shouldn't use these
+    #
+
+    # Session IDs for any sessions terminated by _mocked_kill_session_leader
+    _mocked_killed_session_leaders: Dict[str, Mock]
 
 
 def load_tests(*_):

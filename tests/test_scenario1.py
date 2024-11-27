@@ -879,7 +879,7 @@ class Scenario1MainLoopTestCase(test_main.MainLoopTestCase):
                                                 6, 15, 0, 0,
                                                 tzinfo=datetime.timezone.utc),
                         mtime=datetime.datetime(2024, 11, 22,
-                                                6, 16, 0, 0,
+                                                6, 14, 0, 0,
                                                 tzinfo=datetime.timezone.utc))
             atty.configure_mock(name=name)
             return atty
@@ -898,6 +898,12 @@ class Scenario1MainLoopTestCase(test_main.MainLoopTestCase):
             return atty
 
         raise KeyError(f'Unexpected tty/pty name: {name}')
+
+    def _now(self) -> datetime.datetime:
+        """Return a fixed point in time to compare timedeltas against"""
+        return datetime.datetime(2024, 11, 22,
+                                 6, 17, 0, 0,
+                                 tzinfo=datetime.timezone.utc)
 
     def _excluded_users(self) -> List[str]:
         """Supplement session assertion testing with a set of excluded users"""
@@ -1868,3 +1874,29 @@ class Scenario1MainLoopTestCase(test_main.MainLoopTestCase):
         )
 
         return [session_1267, session_1301, session_1337, session_c1]
+
+    def _expected_results(self) -> List[Tuple[bool, bool,
+                                              Optional[datetime.timedelta]]]:
+        """Specify the expected handling for each of the _expected_sessions
+
+        The returned tuple for _expected_results is as follows:
+          (skipped_exempt: bool, terminated: bool, idle_metric: timedelta)
+        """
+
+        return [
+                # session ID = 1267
+                # 1-minute idle determined by DISPLAY=:1
+                (False, False, datetime.timedelta(seconds=60)),
+
+                # session ID = 1301
+                # 31-minute idle (terminated) based on pty atime/mtime
+                (False, True, datetime.timedelta(seconds=31 * 60)),
+
+                # session ID = 1337
+                # 1-minute idle determined by session 1267
+                (False, False, datetime.timedelta(seconds=60)),
+
+                # session ID = c1
+                # 47-minute idle (NOT terminated) based on DISPLAY=:0
+                (True, False, datetime.timedelta(seconds=47 * 60))
+        ]

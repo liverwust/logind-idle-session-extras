@@ -22,9 +22,15 @@ class Process(NamedTuple):
     environ: Mapping[str, str]
 
     def __eq__(self, other):
-        if isinstance(other, Process):
-            return self.pid == other.pid
-        return False
+        if not hasattr(other, 'pid') or self.pid != other.pid:
+            return False
+
+        # Unusually, we DON'T want to check equality of cmdline or environ.
+        # Process objects are often created with these parameters left blank
+        # (e.g., when constructing instances based on information from the
+        # network table).
+
+        return True
 
 
 def processes_in_scope_path(scope_path: str,

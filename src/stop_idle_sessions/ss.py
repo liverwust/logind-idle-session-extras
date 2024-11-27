@@ -31,15 +31,25 @@ class Socket(NamedTuple):
     processes: List[ps.Process]
 
     def __eq__(self, other):
-        if not isinstance(other, Socket):
-            return False
-        if self.addr != other.addr:
-            return False
-        if self.port != other.port:
+        if not hasattr(other, 'addr'):
             return False
 
-        return list_set.compare_list_sets(self.processes,
-                                          other.processes)
+        if self.addr.is_loopback and other.addr.is_loopback:
+            # Don't process the addresses if they are both loopback
+            pass
+        elif self.addr != other.addr:
+            return False
+
+        if not hasattr(other, 'port') or self.port != other.port:
+            return False
+
+        if not hasattr(other, 'processes'):
+            return False
+
+        if not list_set.compare_list_sets(self.processes, other.processes):
+            return False
+
+        return True
 
 
 class LoopbackConnection(NamedTuple):
@@ -50,6 +60,15 @@ class LoopbackConnection(NamedTuple):
 
     # One or more processes bound to the "server" side of the connection
     server: Socket
+
+    def __eq__(self, other):
+        if not hasattr(other, 'client') or self.client != other.client:
+            return False
+
+        if not hasattr(other, 'server') or self.server != other.server:
+            return False
+
+        return True
 
 
 class SSInvocation:

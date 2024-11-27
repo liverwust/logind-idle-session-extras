@@ -28,9 +28,19 @@ class TTY:
             raise SessionParseError(f'invalid shortname for tty/pts: {name}')
 
     def __eq__(self, other):
-        if not hasattr(other, 'name'):
+        if not hasattr(other, 'name') or self.name != other.name:
             return False
-        return self.name == other.name
+
+        if not hasattr(other, 'full_name') or self.full_name != other.full_name:
+            return False
+
+        if not hasattr(other, 'atime') or self.atime != other.atime:
+            return False
+
+        if not hasattr(other, 'mtime') or self.mtime != other.mtime:
+            return False
+
+        return True
 
     @property
     def name(self) -> str:

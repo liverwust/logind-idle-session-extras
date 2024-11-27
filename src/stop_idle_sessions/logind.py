@@ -38,15 +38,30 @@ class Session:
             raise SessionParseError(f'Problem fetching session id '
                                     f'{session_id}: {err.message}') from err
 
+    # pylint: disable-next=too-many-return-statements
     def __eq__(self, other):
-        """Two Sessions are equal if they share the same ID"""
-        if isinstance(other, Session):
-            return self.session_id == other.session_id
-        return False
+        if not hasattr(other, 'session_id') or self.session_id != other.session_id:
+            return False
 
-    def __hash__(self):
-        """Two Sessions are equal if they share the same ID"""
-        return hash(self.session_id)
+        if not hasattr(other, 'uid') or self.uid != other.uid:
+            return False
+
+        if not hasattr(other, 'tty') or self.tty != other.tty:
+            return False
+
+        if not hasattr(other, 'leader') or self.leader != other.leader:
+            return False
+
+        if not hasattr(other, 'session_type') or self.session_type != other.session_type:
+            return False
+
+        if not hasattr(other, 'scope') or self.scope != other.scope:
+            return False
+
+        if not hasattr(other, 'scope_path') or self.scope_path != other.scope_path:
+            return False
+
+        return True
 
     @property
     def session_id(self) -> str:

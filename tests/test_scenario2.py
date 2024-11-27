@@ -21,16 +21,22 @@ In Scenario 2, there are several sessions:
   * Session c1 is a GDM login screen. Although loginctl indicates this as idle
     for a long time, it should be left alone.
 """
+# Don't worry about how many lines are in this file. It's basically just a
+# dataset (albeit with actual Python objects).
+# pylint: disable=too-many-lines
 
 
+import datetime
 from ipaddress import ip_address, IPv4Address, IPv6Address
 from textwrap import dedent
-from typing import Any, List, Mapping, Set, Tuple, Union
+from typing import Any, List, Mapping, Optional, Set, Tuple, Union
 from unittest.mock import Mock
 
+import stop_idle_sessions.logind
 import stop_idle_sessions.main
 import stop_idle_sessions.ps
 import stop_idle_sessions.ss
+import stop_idle_sessions.tty
 
 from . import test_logind, test_main, test_ps, test_ss
 
@@ -57,6 +63,14 @@ class Scenario2LogindTestCase(test_logind.LogindTestCase):
                     "Leader": "19012",
                     "Type": "tty"
             },
+            "7": {
+                    "Id": "7",
+                    "User": "1000",
+                    "TTY": "pts/1",
+                    "Scope": "session-7.scope",
+                    "Leader": "13268",
+                    "Type": "tty"
+            },
             "14": {
                     "Id": "14",
                     "User": "1000",
@@ -81,14 +95,6 @@ class Scenario2LogindTestCase(test_logind.LogindTestCase):
                     "Leader": "12033",
                     "Type": "tty"
             },
-            "7": {
-                    "Id": "7",
-                    "User": "1000",
-                    "TTY": "pts/1",
-                    "Scope": "session-7.scope",
-                    "Leader": "13268",
-                    "Type": "tty"
-            },
             "c1": {
                     "Id": "c1",
                     "User": "42",
@@ -111,6 +117,15 @@ class Scenario2LogindTestCase(test_logind.LogindTestCase):
                 "session_type": "tty",
                 "scope": "session-13.scope",
                 "scope_path": "/user.slice/user-1000.slice/session-13.scope"
+            },
+            {
+                "session_id": "7",
+                "uid": 1000,
+                "tty": "pts/1",
+                "leader": 13268,
+                "session_type": "tty",
+                "scope": "session-7.scope",
+                "scope_path": "/user.slice/user-1000.slice/session-7.scope"
             },
             {
                 "session_id": "14",
@@ -138,15 +153,6 @@ class Scenario2LogindTestCase(test_logind.LogindTestCase):
                 "session_type": "tty",
                 "scope": "session-5.scope",
                 "scope_path": "/user.slice/user-1000.slice/session-5.scope"
-            },
-            {
-                "session_id": "7",
-                "uid": 1000,
-                "tty": "pts/1",
-                "leader": 13268,
-                "session_type": "tty",
-                "scope": "session-7.scope",
-                "scope_path": "/user.slice/user-1000.slice/session-7.scope"
             },
             {
                 "session_id": "c1",
@@ -375,298 +381,1122 @@ class Scenario2MainLoopTestCase(test_main.MainLoopTestCase):
     the input data which was used to specify this test fixture.
     """
 
-    def _mock_get_logind_sessions(self) -> List[Mock]:
+    def _mock_get_all_sessions(self) -> List[stop_idle_sessions.logind.Session]:
         """Input data to mock out the logind module and D-Bus"""
         return [
-            test_main.MainLoopTestCase.create_mock_logind_session(
-                    session_id="13",
-                    session_type="tty",
-                    uid=1000,
-                    tty="",
-                    leader=19012,
-                    scope="session-13.scope",
-            ),
-            test_main.MainLoopTestCase.create_mock_logind_session(
-                    session_id="14",
-                    session_type="tty",
-                    uid=1000,
-                    tty="pts/3",
-                    leader=20982,
-                    scope="session-14.scope",
-            ),
-            test_main.MainLoopTestCase.create_mock_logind_session(
-                    session_id="16",
-                    session_type="tty",
-                    uid=1001,
-                    tty="pts/2",
-                    leader=27584,
-                    scope="session-16.scope",
-            ),
-            test_main.MainLoopTestCase.create_mock_logind_session(
-                    session_id="5",
-                    session_type="tty",
-                    uid=1000,
-                    tty="pts/0",
-                    leader=12033,
-                    scope="session-5.scope",
-            ),
-            test_main.MainLoopTestCase.create_mock_logind_session(
-                    session_id="7",
-                    session_type="tty",
-                    uid=1000,
-                    tty="pts/1",
-                    leader=13268,
-                    scope="session-7.scope",
-            ),
-            test_main.MainLoopTestCase.create_mock_logind_session(
-                    session_id="c1",
-                    session_type="wayland",
-                    uid=42,
-                    tty="tty1",
-                    leader=13679,
-                    scope="session-c1.scope",
-            )
+            Mock(spec_set=stop_idle_sessions.logind.Session,
+                 session_id="13",
+                 session_type="tty",
+                 uid=1000,
+                 tty="",
+                 leader=19012,
+                 scope="session-13.scope",
+                 scope_path="/user.slice/user-1000.slice/session-13.scope"),
+            Mock(spec_set=stop_idle_sessions.logind.Session,
+                 session_id="7",
+                 session_type="tty",
+                 uid=1000,
+                 tty="pts/1",
+                 leader=13268,
+                 scope="session-7.scope",
+                 scope_path="/user.slice/user-1000.slice/session-7.scope"),
+            Mock(spec_set=stop_idle_sessions.logind.Session,
+                 session_id="14",
+                 session_type="tty",
+                 uid=1000,
+                 tty="pts/3",
+                 leader=20982,
+                 scope="session-14.scope",
+                 scope_path="/user.slice/user-1000.slice/session-14.scope"),
+            Mock(spec_set=stop_idle_sessions.logind.Session,
+                 session_id="16",
+                 session_type="tty",
+                 uid=1001,
+                 tty="pts/2",
+                 leader=27584,
+                 scope="session-16.scope",
+                 scope_path="/user.slice/user-1001.slice/session-16.scope"),
+            Mock(spec_set=stop_idle_sessions.logind.Session,
+                 session_id="5",
+                 session_type="tty",
+                 uid=1000,
+                 tty="pts/0",
+                 leader=12033,
+                 scope="session-5.scope",
+                 scope_path="/user.slice/user-1000.slice/session-5.scope"),
+            Mock(spec_set=stop_idle_sessions.logind.Session,
+                 session_id="c1",
+                 session_type="wayland",
+                 uid=42,
+                 tty="tty1",
+                 leader=13679,
+                 scope="session-c1.scope",
+                 scope_path="/user.slice/user-42.slice/session-c1.scope"),
         ]
 
-    def _mock_find_loopback_connections(self) -> List[Mock]:
+    def _mock_find_loopback_connections(self) -> List[stop_idle_sessions.ss.LoopbackConnection]:
         """Input data to mock out the ss utility and module"""
         return [
-            test_main.MainLoopTestCase.create_mock_loopback_connection(
-                    client_addr=ip_address('127.0.0.1'),
-                    client_port=52016,
-                    client_pids=[19015],
-                    server_addr=ip_address('127.0.0.1'),
-                    server_port=35249,
-                    server_pids=[19453]
+            stop_idle_sessions.ss.LoopbackConnection(
+                client=stop_idle_sessions.ss.Socket(
+                    addr=ip_address('127.0.0.1'),
+                    port=52016,
+                    processes=[stop_idle_sessions.ps.Process(
+                        pid=19015,
+                        cmdline="",
+                        environ={})
+                    ]
+                ),
+                server=stop_idle_sessions.ss.Socket(
+                    addr=ip_address('127.0.0.1'),
+                    port=35249,
+                    processes=[stop_idle_sessions.ps.Process(
+                        pid=19453,
+                        cmdline="",
+                        environ={})
+                    ]
+                )
             ),
-            test_main.MainLoopTestCase.create_mock_loopback_connection(
-                    client_addr=ip_address('::1'),
-                    client_port=45028,
-                    client_pids=[20985],
-                    server_addr=ip_address('::1'),
-                    server_port=5901,
-                    server_pids=[20272]
+
+            stop_idle_sessions.ss.LoopbackConnection(
+                client=stop_idle_sessions.ss.Socket(
+                    addr=ip_address('::1'),
+                    port=45028,
+                    processes=[stop_idle_sessions.ps.Process(
+                        pid=20985,
+                        cmdline="",
+                        environ={})
+                    ]
+                ),
+                server=stop_idle_sessions.ss.Socket(
+                    addr=ip_address('::1'),
+                    port=5901,
+                    processes=[stop_idle_sessions.ps.Process(
+                        pid=20272,
+                        cmdline="",
+                        environ={})
+                    ]
+                )
             )
         ]
 
-    def _mock_map_scope_processes(self) -> Mapping[str, Set[int]]:
+    def _mock_processes_in_scope_path(self,
+                                  scope_path: str) -> List[stop_idle_sessions.ps.Process]:
         """Input data to mock out the ps and cgroup interface module"""
-        return {
-            "13": set([19012, 19015, 19016, 19400, 19453, 19495, 19501, 19735,
-                       20164, 20175, 28246]),
-            "14": set([20982, 20985, 20986]),
-            "16": set([27584, 27608, 27996, 28025, 28029, 28030, 28032]),
-            "5": set([12033, 12036, 12037, 22103, 22105, 22106, 22135,
-                      22136]),
-            "7": set([13268, 13271, 13272, 20272, 20277, 20278, 20287, 20288,
-                      20295, 20308, 20313, 20318, 20320, 20327, 20362, 20373,
-                      20393, 20396, 20402, 20403, 20405, 20410, 20412, 20427,
-                      20438, 20447, 20468, 20587, 20594, 20601, 20607, 20616,
-                      20620, 20622, 20625, 20626, 20631, 20633, 20637, 20639,
-                      20643, 20644, 20651, 20655, 20661, 20663, 20665, 20668,
-                      20673, 20674, 20705, 20726, 20736, 20741, 20749, 20765,
-                      20767, 20778, 20783, 20790, 20791, 20805, 20810]),
-            "c1": set([13679, 13704, 13712, 13713, 13717, 13752, 13793, 13802,
-                       13807, 13810, 13818, 13821, 13824, 13827, 13835, 13864,
-                       13866, 13870, 13871, 13875, 13877, 13878, 13881, 13883,
-                       13890, 13900, 13904, 13907, 13911, 13954, 13988])
-        }
 
-    def _mock_username_mapping(self) -> Mapping[int, str]:
+        if scope_path == "/user.slice/user-1000.slice/session-13.scope":
+            return list(map(lambda pid: stop_idle_sessions.ps.Process(pid=pid,
+                                                                      cmdline="",
+                                                                      environ={}),
+                            [19012, 19015, 19016, 19400, 19453, 19495, 19501,
+                             19735, 20164, 20175, 28246]))
+
+        if scope_path == "/user.slice/user-1000.slice/session-14.scope":
+            return list(map(lambda pid: stop_idle_sessions.ps.Process(pid=pid,
+                                                                      cmdline="",
+                                                                      environ={}),
+                             [20982, 20985, 20986]))
+
+        if scope_path == "/user.slice/user-1001.slice/session-16.scope":
+            return list(map(lambda pid: stop_idle_sessions.ps.Process(pid=pid,
+                                                                      cmdline="",
+                                                                      environ={}),
+                            [27584, 27608, 27996, 28025, 28029, 28030,
+                             28032]))
+
+        if scope_path == "/user.slice/user-1000.slice/session-5.scope":
+            return list(map(lambda pid: stop_idle_sessions.ps.Process(pid=pid,
+                                                                      cmdline="",
+                                                                      environ={}),
+                            [12033, 12036, 12037, 22103, 22105, 22106, 22135,
+                             22136]))
+
+        if scope_path == "/user.slice/user-1000.slice/session-7.scope":
+            pids = list(map(lambda pid: stop_idle_sessions.ps.Process(pid=pid,
+                                                                      cmdline="",
+                                                                      environ={}),
+                            [13268, 13271, 13272, 20278, 20287, 20288, 20295,
+                             20308, 20313, 20318, 20320, 20327, 20362, 20373,
+                             20393, 20396, 20402, 20403, 20405, 20410, 20412,
+                             20427, 20438, 20447, 20468, 20587, 20594, 20601,
+                             20607, 20616, 20620, 20622, 20625, 20626, 20631,
+                             20633, 20637, 20639, 20643, 20644, 20651, 20655,
+                             20661, 20663, 20665, 20668, 20673, 20674, 20705,
+                             20726, 20736, 20741, 20749, 20765, 20767, 20778,
+                             20783, 20790, 20791, 20805, 20810]))
+
+            pids.append(stop_idle_sessions.ps.Process(
+                    pid=20272,
+                    cmdline=("/usr/bin/Xvnc :1 -auth /u/wk/auser/.Xauthority "
+                             "-desktop computer:1 (auser) -fp "
+                             "catalogue:/etc/X11/fontpath.d -geometry "
+                             "1024x768 -pn -rfbauth /u/wk/auser/.vnc/passwd "
+                             "-rfbport 5901 -localhost"),
+                    environ={}
+            ))
+            pids.append(stop_idle_sessions.ps.Process(
+                    pid=20277,
+                    cmdline="/bin/sh /u/wk/auser/.vnc/xstartup",
+                    environ={'DISPLAY': ":1"}
+            ))
+
+            return pids
+
+        if scope_path == "/user.slice/user-42.slice/session-c1.scope":
+            return list(map(lambda pid: stop_idle_sessions.ps.Process(pid=pid,
+                                                                      cmdline="",
+                                                                      environ={}),
+                            [13679, 13704, 13712, 13713, 13717, 13752, 13793,
+                             13802, 13807, 13810, 13818, 13821, 13824, 13827,
+                             13835, 13864, 13866, 13870, 13871, 13875, 13877,
+                             13878, 13881, 13883, 13890, 13900, 13904, 13907,
+                             13911, 13954, 13988]))
+
+        raise KeyError(f'Unexpected scope argument: {scope_path}')
+
+    def _mock_uid_to_username(self, uid: int) -> str:
         """Convert numeric UIDs to symbolic usernames"""
-        return {42: 'gdm', 1000: 'auser', 1001: 'ansible'}
+        return {42: 'gdm', 1000: 'auser', 1001: 'ansible'}[uid]
 
-    def _mock_excluded_users(self) -> List[str]:
+    def _mock_retrieve_idle_time(self,
+                                 display: str,
+                                 xauthority: Optional[str]) -> Optional[datetime.timedelta]:
+        """Mock information about an X11 DISPLAY's idle timeout"""
+        assert xauthority is None or isinstance(xauthority, str)
+
+        if display == ':0':
+            return datetime.timedelta(seconds=99 * 60)
+        if display == ':1':
+            return datetime.timedelta(seconds=17 * 60)
+
+        raise KeyError(f'Unexpected DISPLAY argument: {display}')
+
+    def _mock_tty(self, name: str) -> stop_idle_sessions.tty.TTY:
+        """Mock information about a tty/pty's timestamps"""
+
+        if name == 'pts/1':
+            atty = Mock(spec=stop_idle_sessions.tty.TTY,
+                        name=name,
+                        full_name='/dev/pts/1',
+                        atime=datetime.datetime(2024, 11, 22,
+                                                5, 59, 0, 0,
+                                                tzinfo=datetime.timezone.utc),
+                        mtime=datetime.datetime(2024, 11, 22,
+                                                5, 59, 0, 0,
+                                                tzinfo=datetime.timezone.utc))
+            atty.configure_mock(name=name)
+            return atty
+
+        if name == 'pts/3':
+            atty = Mock(spec=stop_idle_sessions.tty.TTY,
+                        full_name='/dev/pts/3',
+                        atime=datetime.datetime(2024, 11, 22,
+                                                5, 15, 0, 0,
+                                                tzinfo=datetime.timezone.utc),
+                        mtime=datetime.datetime(2024, 11, 22,
+                                                5, 18, 0, 0,
+                                                tzinfo=datetime.timezone.utc))
+            atty.configure_mock(name=name)
+            return atty
+
+        if name == 'pts/2':
+            atty = Mock(spec=stop_idle_sessions.tty.TTY,
+                        name=name,
+                        full_name='/dev/pts/2',
+                        atime=datetime.datetime(2024, 11, 22,
+                                                5, 11, 0, 0,
+                                                tzinfo=datetime.timezone.utc),
+                        mtime=datetime.datetime(2024, 11, 22,
+                                                5, 12, 0, 0,
+                                                tzinfo=datetime.timezone.utc))
+            atty.configure_mock(name=name)
+            return atty
+
+        if name == 'pts/0':
+            atty = Mock(spec=stop_idle_sessions.tty.TTY,
+                        name=name,
+                        full_name='/dev/pts/0',
+                        atime=datetime.datetime(2024, 11, 22,
+                                                6, 14, 0, 0,
+                                                tzinfo=datetime.timezone.utc),
+                        mtime=datetime.datetime(2024, 11, 22,
+                                                6, 14, 0, 0,
+                                                tzinfo=datetime.timezone.utc))
+            atty.configure_mock(name=name)
+            return atty
+
+        if name == 'tty1':
+            atty = Mock(spec=stop_idle_sessions.tty.TTY,
+                        name=name,
+                        full_name='/dev/tty1',
+                        atime=datetime.datetime(2024, 11, 22,
+                                                4, 38, 0, 0,
+                                                tzinfo=datetime.timezone.utc),
+                        mtime=datetime.datetime(2024, 11, 22,
+                                                4, 38, 0, 0,
+                                                tzinfo=datetime.timezone.utc))
+            atty.configure_mock(name=name)
+            return atty
+
+        raise KeyError(f'Unexpected tty/pty name: {name}')
+
+    def _now(self) -> datetime.datetime:
+        """Return a fixed point in time to compare timedeltas against"""
+        return datetime.datetime(2024, 11, 22,
+                                 6, 17, 0, 0,
+                                 tzinfo=datetime.timezone.utc)
+
+    def _excluded_users(self) -> List[str]:
         """Supplement session assertion testing with a set of excluded users"""
         return ["ansible"]
 
-    def _register_expected_sessions(self) -> None:
+    def _expected_sessions(self) -> List[stop_idle_sessions.main.Session]:
         """Register the expected set of fully-fleshed-out session objects"""
-        self.register_mock_session(
-                session_id="13",
-                session_type='tty',
-                uid=1000,
+
+        logind_sessions = self._mock_get_all_sessions()
+
+        session_13 = stop_idle_sessions.main.Session(
+                session=logind_sessions[0],
                 tty=None,
-                scope="session-13.scope",
-                pids_and_tunnels={
-                    19012: ([], []),
-                    19015: ([19453], ["13"]),
-                    19016: ([], []),
-                    19400: ([], []),
-                    19453: ([], []),
-                    19495: ([], []),
-                    19501: ([], []),
-                    19735: ([], []),
-                    20164: ([], []),
-                    20175: ([], []),
-                    28246: ([], [])
-                },
-                assert_skipped=True
+                display=None,
+                display_idle=None,
+                username='auser',
+                processes=[stop_idle_sessions.main.SessionProcess(
+                                process=stop_idle_sessions.ps.Process(pid=19012,
+                                                                      cmdline="",
+                                                                      environ={}),
+                                tunneled_processes=[],
+                                tunneled_sessions=[]),
+                           stop_idle_sessions.main.SessionProcess(
+                                process=stop_idle_sessions.ps.Process(pid=19016,
+                                                                      cmdline="",
+                                                                      environ={}),
+                                tunneled_processes=[],
+                                tunneled_sessions=[]),
+                           stop_idle_sessions.main.SessionProcess(
+                                process=stop_idle_sessions.ps.Process(pid=19400,
+                                                                      cmdline="",
+                                                                      environ={}),
+                                tunneled_processes=[],
+                                tunneled_sessions=[]),
+                           stop_idle_sessions.main.SessionProcess(
+                                process=stop_idle_sessions.ps.Process(pid=19453,
+                                                                      cmdline="",
+                                                                      environ={}),
+                                tunneled_processes=[],
+                                tunneled_sessions=[]),
+                           stop_idle_sessions.main.SessionProcess(
+                                process=stop_idle_sessions.ps.Process(pid=19495,
+                                                                      cmdline="",
+                                                                      environ={}),
+                                tunneled_processes=[],
+                                tunneled_sessions=[]),
+                           stop_idle_sessions.main.SessionProcess(
+                                process=stop_idle_sessions.ps.Process(pid=19501,
+                                                                      cmdline="",
+                                                                      environ={}),
+                                tunneled_processes=[],
+                                tunneled_sessions=[]),
+                           stop_idle_sessions.main.SessionProcess(
+                                process=stop_idle_sessions.ps.Process(pid=19735,
+                                                                      cmdline="",
+                                                                      environ={}),
+                                tunneled_processes=[],
+                                tunneled_sessions=[]),
+                           stop_idle_sessions.main.SessionProcess(
+                                process=stop_idle_sessions.ps.Process(pid=20164,
+                                                                      cmdline="",
+                                                                      environ={}),
+                                tunneled_processes=[],
+                                tunneled_sessions=[]),
+                           stop_idle_sessions.main.SessionProcess(
+                                process=stop_idle_sessions.ps.Process(pid=20175,
+                                                                      cmdline="",
+                                                                      environ={}),
+                                tunneled_processes=[],
+                                tunneled_sessions=[]),
+                           stop_idle_sessions.main.SessionProcess(
+                                process=stop_idle_sessions.ps.Process(pid=28246,
+                                                                      cmdline="",
+                                                                      environ={}),
+                                tunneled_processes=[],
+                                tunneled_sessions=[])]
         )
 
-        self.register_mock_session(
-                session_id="14",
-                session_type='tty',
-                uid=1000,
-                tty='pts/3',
-                scope="session-14.scope",
-                pids_and_tunnels={
-                    20982: ([], []),
-                    20985: ([20272], ["7"]),
-                    20986: ([], [])
-                },
-                assert_skipped=False
+        # Tie session 13 back into itself.
+        session_13.processes.append(
+                stop_idle_sessions.main.SessionProcess(
+                     process=stop_idle_sessions.ps.Process(pid=19015,
+                                                           cmdline="",
+                                                           environ={}),
+                     tunneled_processes=[
+                         stop_idle_sessions.ps.Process(pid=19453,
+                                                       cmdline="",
+                                                       environ={})
+                     ],
+                     tunneled_sessions=[session_13]
+                )
         )
 
-        self.register_mock_session(
-                session_id="16",
-                session_type='tty',
-                uid=1001,
-                tty='pts/2',
-                scope="session-16.scope",
-                pids_and_tunnels={
-                    27584: ([], []),
-                    27608: ([], []),
-                    27996: ([], []),
-                    28025: ([], []),
-                    28029: ([], []),
-                    28030: ([], []),
-                    28032: ([], [])
-                },
-                assert_skipped=True
+        session_7 = stop_idle_sessions.main.Session(
+                session=logind_sessions[1],
+                tty=self._mock_tty('pts/1'),
+                display=':1',
+                display_idle=datetime.timedelta(seconds=17 * 60),
+                username='auser',
+                processes=[stop_idle_sessions.main.SessionProcess(
+                                process=stop_idle_sessions.ps.Process(pid=13268,
+                                                                      cmdline="",
+                                                                      environ={}),
+                                tunneled_processes=[],
+                                tunneled_sessions=[]),
+                           stop_idle_sessions.main.SessionProcess(
+                                process=stop_idle_sessions.ps.Process(pid=13271,
+                                                                      cmdline="",
+                                                                      environ={}),
+                                tunneled_processes=[],
+                                tunneled_sessions=[]),
+                           stop_idle_sessions.main.SessionProcess(
+                                process=stop_idle_sessions.ps.Process(pid=13272,
+                                                                      cmdline="",
+                                                                      environ={}),
+                                tunneled_processes=[],
+                                tunneled_sessions=[]),
+                           stop_idle_sessions.main.SessionProcess(
+                                process=stop_idle_sessions.ps.Process(
+                                    pid=20272,
+                                    cmdline=("/usr/bin/Xvnc :1 -auth "
+                                             "/u/wk/auser/.Xauthority -desktop "
+                                             "computer:1 (auser) -fp "
+                                             "catalogue:/etc/X11/fontpath.d "
+                                             "-geometry 1024x768 -pn -rfbauth "
+                                             "/u/wk/auser/.vnc/passwd -rfbport "
+                                             "5901 -localhost"),
+                                    environ={}
+                                ),
+                                tunneled_processes=[],
+                                tunneled_sessions=[]),
+                           stop_idle_sessions.main.SessionProcess(
+                                process=stop_idle_sessions.ps.Process(
+                                    pid=20277,
+                                    cmdline="/bin/sh /u/wk/auser/.vnc/xstartup",
+                                    environ={'DISPLAY': ':1'}
+                                ),
+                                tunneled_processes=[],
+                                tunneled_sessions=[]),
+                           stop_idle_sessions.main.SessionProcess(
+                                process=stop_idle_sessions.ps.Process(pid=20278,
+                                                                      cmdline="",
+                                                                      environ={}),
+                                tunneled_processes=[],
+                                tunneled_sessions=[]),
+                           stop_idle_sessions.main.SessionProcess(
+                                process=stop_idle_sessions.ps.Process(pid=20287,
+                                                                      cmdline="",
+                                                                      environ={}),
+                                tunneled_processes=[],
+                                tunneled_sessions=[]),
+                           stop_idle_sessions.main.SessionProcess(
+                                process=stop_idle_sessions.ps.Process(pid=20288,
+                                                                      cmdline="",
+                                                                      environ={}),
+                                tunneled_processes=[],
+                                tunneled_sessions=[]),
+                           stop_idle_sessions.main.SessionProcess(
+                                process=stop_idle_sessions.ps.Process(pid=20295,
+                                                                      cmdline="",
+                                                                      environ={}),
+                                tunneled_processes=[],
+                                tunneled_sessions=[]),
+                           stop_idle_sessions.main.SessionProcess(
+                                process=stop_idle_sessions.ps.Process(pid=20308,
+                                                                      cmdline="",
+                                                                      environ={}),
+                                tunneled_processes=[],
+                                tunneled_sessions=[]),
+                           stop_idle_sessions.main.SessionProcess(
+                                process=stop_idle_sessions.ps.Process(pid=20313,
+                                                                      cmdline="",
+                                                                      environ={}),
+                                tunneled_processes=[],
+                                tunneled_sessions=[]),
+                           stop_idle_sessions.main.SessionProcess(
+                                process=stop_idle_sessions.ps.Process(pid=20318,
+                                                                      cmdline="",
+                                                                      environ={}),
+                                tunneled_processes=[],
+                                tunneled_sessions=[]),
+                           stop_idle_sessions.main.SessionProcess(
+                                process=stop_idle_sessions.ps.Process(pid=20320,
+                                                                      cmdline="",
+                                                                      environ={}),
+                                tunneled_processes=[],
+                                tunneled_sessions=[]),
+                           stop_idle_sessions.main.SessionProcess(
+                                process=stop_idle_sessions.ps.Process(pid=20327,
+                                                                      cmdline="",
+                                                                      environ={}),
+                                tunneled_processes=[],
+                                tunneled_sessions=[]),
+                           stop_idle_sessions.main.SessionProcess(
+                                process=stop_idle_sessions.ps.Process(pid=20362,
+                                                                      cmdline="",
+                                                                      environ={}),
+                                tunneled_processes=[],
+                                tunneled_sessions=[]),
+                           stop_idle_sessions.main.SessionProcess(
+                                process=stop_idle_sessions.ps.Process(pid=20373,
+                                                                      cmdline="",
+                                                                      environ={}),
+                                tunneled_processes=[],
+                                tunneled_sessions=[]),
+                           stop_idle_sessions.main.SessionProcess(
+                                process=stop_idle_sessions.ps.Process(pid=20393,
+                                                                      cmdline="",
+                                                                      environ={}),
+                                tunneled_processes=[],
+                                tunneled_sessions=[]),
+                           stop_idle_sessions.main.SessionProcess(
+                                process=stop_idle_sessions.ps.Process(pid=20396,
+                                                                      cmdline="",
+                                                                      environ={}),
+                                tunneled_processes=[],
+                                tunneled_sessions=[]),
+                           stop_idle_sessions.main.SessionProcess(
+                                process=stop_idle_sessions.ps.Process(pid=20402,
+                                                                      cmdline="",
+                                                                      environ={}),
+                                tunneled_processes=[],
+                                tunneled_sessions=[]),
+                           stop_idle_sessions.main.SessionProcess(
+                                process=stop_idle_sessions.ps.Process(pid=20403,
+                                                                      cmdline="",
+                                                                      environ={}),
+                                tunneled_processes=[],
+                                tunneled_sessions=[]),
+                           stop_idle_sessions.main.SessionProcess(
+                                process=stop_idle_sessions.ps.Process(pid=20405,
+                                                                      cmdline="",
+                                                                      environ={}),
+                                tunneled_processes=[],
+                                tunneled_sessions=[]),
+                           stop_idle_sessions.main.SessionProcess(
+                                process=stop_idle_sessions.ps.Process(pid=20410,
+                                                                      cmdline="",
+                                                                      environ={}),
+                                tunneled_processes=[],
+                                tunneled_sessions=[]),
+                           stop_idle_sessions.main.SessionProcess(
+                                process=stop_idle_sessions.ps.Process(pid=20412,
+                                                                      cmdline="",
+                                                                      environ={}),
+                                tunneled_processes=[],
+                                tunneled_sessions=[]),
+                           stop_idle_sessions.main.SessionProcess(
+                                process=stop_idle_sessions.ps.Process(pid=20427,
+                                                                      cmdline="",
+                                                                      environ={}),
+                                tunneled_processes=[],
+                                tunneled_sessions=[]),
+                           stop_idle_sessions.main.SessionProcess(
+                                process=stop_idle_sessions.ps.Process(pid=20438,
+                                                                      cmdline="",
+                                                                      environ={}),
+                                tunneled_processes=[],
+                                tunneled_sessions=[]),
+                           stop_idle_sessions.main.SessionProcess(
+                                process=stop_idle_sessions.ps.Process(pid=20447,
+                                                                      cmdline="",
+                                                                      environ={}),
+                                tunneled_processes=[],
+                                tunneled_sessions=[]),
+                           stop_idle_sessions.main.SessionProcess(
+                                process=stop_idle_sessions.ps.Process(pid=20468,
+                                                                      cmdline="",
+                                                                      environ={}),
+                                tunneled_processes=[],
+                                tunneled_sessions=[]),
+                           stop_idle_sessions.main.SessionProcess(
+                                process=stop_idle_sessions.ps.Process(pid=20587,
+                                                                      cmdline="",
+                                                                      environ={}),
+                                tunneled_processes=[],
+                                tunneled_sessions=[]),
+                           stop_idle_sessions.main.SessionProcess(
+                                process=stop_idle_sessions.ps.Process(pid=20594,
+                                                                      cmdline="",
+                                                                      environ={}),
+                                tunneled_processes=[],
+                                tunneled_sessions=[]),
+                           stop_idle_sessions.main.SessionProcess(
+                                process=stop_idle_sessions.ps.Process(pid=20601,
+                                                                      cmdline="",
+                                                                      environ={}),
+                                tunneled_processes=[],
+                                tunneled_sessions=[]),
+                           stop_idle_sessions.main.SessionProcess(
+                                process=stop_idle_sessions.ps.Process(pid=20607,
+                                                                      cmdline="",
+                                                                      environ={}),
+                                tunneled_processes=[],
+                                tunneled_sessions=[]),
+                           stop_idle_sessions.main.SessionProcess(
+                                process=stop_idle_sessions.ps.Process(pid=20616,
+                                                                      cmdline="",
+                                                                      environ={}),
+                                tunneled_processes=[],
+                                tunneled_sessions=[]),
+                           stop_idle_sessions.main.SessionProcess(
+                                process=stop_idle_sessions.ps.Process(pid=20620,
+                                                                      cmdline="",
+                                                                      environ={}),
+                                tunneled_processes=[],
+                                tunneled_sessions=[]),
+                           stop_idle_sessions.main.SessionProcess(
+                                process=stop_idle_sessions.ps.Process(pid=20622,
+                                                                      cmdline="",
+                                                                      environ={}),
+                                tunneled_processes=[],
+                                tunneled_sessions=[]),
+                           stop_idle_sessions.main.SessionProcess(
+                                process=stop_idle_sessions.ps.Process(pid=20625,
+                                                                      cmdline="",
+                                                                      environ={}),
+                                tunneled_processes=[],
+                                tunneled_sessions=[]),
+                           stop_idle_sessions.main.SessionProcess(
+                                process=stop_idle_sessions.ps.Process(pid=20626,
+                                                                      cmdline="",
+                                                                      environ={}),
+                                tunneled_processes=[],
+                                tunneled_sessions=[]),
+                           stop_idle_sessions.main.SessionProcess(
+                                process=stop_idle_sessions.ps.Process(pid=20631,
+                                                                      cmdline="",
+                                                                      environ={}),
+                                tunneled_processes=[],
+                                tunneled_sessions=[]),
+                           stop_idle_sessions.main.SessionProcess(
+                                process=stop_idle_sessions.ps.Process(pid=20633,
+                                                                      cmdline="",
+                                                                      environ={}),
+                                tunneled_processes=[],
+                                tunneled_sessions=[]),
+                           stop_idle_sessions.main.SessionProcess(
+                                process=stop_idle_sessions.ps.Process(pid=20637,
+                                                                      cmdline="",
+                                                                      environ={}),
+                                tunneled_processes=[],
+                                tunneled_sessions=[]),
+                           stop_idle_sessions.main.SessionProcess(
+                                process=stop_idle_sessions.ps.Process(pid=20639,
+                                                                      cmdline="",
+                                                                      environ={}),
+                                tunneled_processes=[],
+                                tunneled_sessions=[]),
+                           stop_idle_sessions.main.SessionProcess(
+                                process=stop_idle_sessions.ps.Process(pid=20643,
+                                                                      cmdline="",
+                                                                      environ={}),
+                                tunneled_processes=[],
+                                tunneled_sessions=[]),
+                           stop_idle_sessions.main.SessionProcess(
+                                process=stop_idle_sessions.ps.Process(pid=20644,
+                                                                      cmdline="",
+                                                                      environ={}),
+                                tunneled_processes=[],
+                                tunneled_sessions=[]),
+                           stop_idle_sessions.main.SessionProcess(
+                                process=stop_idle_sessions.ps.Process(pid=20651,
+                                                                      cmdline="",
+                                                                      environ={}),
+                                tunneled_processes=[],
+                                tunneled_sessions=[]),
+                           stop_idle_sessions.main.SessionProcess(
+                                process=stop_idle_sessions.ps.Process(pid=20655,
+                                                                      cmdline="",
+                                                                      environ={}),
+                                tunneled_processes=[],
+                                tunneled_sessions=[]),
+                           stop_idle_sessions.main.SessionProcess(
+                                process=stop_idle_sessions.ps.Process(pid=20661,
+                                                                      cmdline="",
+                                                                      environ={}),
+                                tunneled_processes=[],
+                                tunneled_sessions=[]),
+                           stop_idle_sessions.main.SessionProcess(
+                                process=stop_idle_sessions.ps.Process(pid=20663,
+                                                                      cmdline="",
+                                                                      environ={}),
+                                tunneled_processes=[],
+                                tunneled_sessions=[]),
+                           stop_idle_sessions.main.SessionProcess(
+                                process=stop_idle_sessions.ps.Process(pid=20665,
+                                                                      cmdline="",
+                                                                      environ={}),
+                                tunneled_processes=[],
+                                tunneled_sessions=[]),
+                           stop_idle_sessions.main.SessionProcess(
+                                process=stop_idle_sessions.ps.Process(pid=20668,
+                                                                      cmdline="",
+                                                                      environ={}),
+                                tunneled_processes=[],
+                                tunneled_sessions=[]),
+                           stop_idle_sessions.main.SessionProcess(
+                                process=stop_idle_sessions.ps.Process(pid=20673,
+                                                                      cmdline="",
+                                                                      environ={}),
+                                tunneled_processes=[],
+                                tunneled_sessions=[]),
+                           stop_idle_sessions.main.SessionProcess(
+                                process=stop_idle_sessions.ps.Process(pid=20674,
+                                                                      cmdline="",
+                                                                      environ={}),
+                                tunneled_processes=[],
+                                tunneled_sessions=[]),
+                           stop_idle_sessions.main.SessionProcess(
+                                process=stop_idle_sessions.ps.Process(pid=20705,
+                                                                      cmdline="",
+                                                                      environ={}),
+                                tunneled_processes=[],
+                                tunneled_sessions=[]),
+                           stop_idle_sessions.main.SessionProcess(
+                                process=stop_idle_sessions.ps.Process(pid=20726,
+                                                                      cmdline="",
+                                                                      environ={}),
+                                tunneled_processes=[],
+                                tunneled_sessions=[]),
+                           stop_idle_sessions.main.SessionProcess(
+                                process=stop_idle_sessions.ps.Process(pid=20736,
+                                                                      cmdline="",
+                                                                      environ={}),
+                                tunneled_processes=[],
+                                tunneled_sessions=[]),
+                           stop_idle_sessions.main.SessionProcess(
+                                process=stop_idle_sessions.ps.Process(pid=20741,
+                                                                      cmdline="",
+                                                                      environ={}),
+                                tunneled_processes=[],
+                                tunneled_sessions=[]),
+                           stop_idle_sessions.main.SessionProcess(
+                                process=stop_idle_sessions.ps.Process(pid=20749,
+                                                                      cmdline="",
+                                                                      environ={}),
+                                tunneled_processes=[],
+                                tunneled_sessions=[]),
+                           stop_idle_sessions.main.SessionProcess(
+                                process=stop_idle_sessions.ps.Process(pid=20765,
+                                                                      cmdline="",
+                                                                      environ={}),
+                                tunneled_processes=[],
+                                tunneled_sessions=[]),
+                           stop_idle_sessions.main.SessionProcess(
+                                process=stop_idle_sessions.ps.Process(pid=20767,
+                                                                      cmdline="",
+                                                                      environ={}),
+                                tunneled_processes=[],
+                                tunneled_sessions=[]),
+                           stop_idle_sessions.main.SessionProcess(
+                                process=stop_idle_sessions.ps.Process(pid=20778,
+                                                                      cmdline="",
+                                                                      environ={}),
+                                tunneled_processes=[],
+                                tunneled_sessions=[]),
+                           stop_idle_sessions.main.SessionProcess(
+                                process=stop_idle_sessions.ps.Process(pid=20783,
+                                                                      cmdline="",
+                                                                      environ={}),
+                                tunneled_processes=[],
+                                tunneled_sessions=[]),
+                           stop_idle_sessions.main.SessionProcess(
+                                process=stop_idle_sessions.ps.Process(pid=20790,
+                                                                      cmdline="",
+                                                                      environ={}),
+                                tunneled_processes=[],
+                                tunneled_sessions=[]),
+                           stop_idle_sessions.main.SessionProcess(
+                                process=stop_idle_sessions.ps.Process(pid=20791,
+                                                                      cmdline="",
+                                                                      environ={}),
+                                tunneled_processes=[],
+                                tunneled_sessions=[]),
+                           stop_idle_sessions.main.SessionProcess(
+                                process=stop_idle_sessions.ps.Process(pid=20805,
+                                                                      cmdline="",
+                                                                      environ={}),
+                                tunneled_processes=[],
+                                tunneled_sessions=[]),
+                           stop_idle_sessions.main.SessionProcess(
+                                process=stop_idle_sessions.ps.Process(pid=20810,
+                                                                      cmdline="",
+                                                                      environ={}),
+                                tunneled_processes=[],
+                                tunneled_sessions=[])]
         )
 
-        self.register_mock_session(
-                session_id="5",
-                session_type='tty',
-                uid=1000,
-                tty='pts/0',
-                scope="session-5.scope",
-                pids_and_tunnels={
-                    12033: ([], []),
-                    12036: ([], []),
-                    12037: ([], []),
-                    22103: ([], []),
-                    22105: ([], []),
-                    22106: ([], []),
-                    22135: ([], []),
-                    22136: ([], [])
-                },
-                assert_skipped=False
+        session_14 = stop_idle_sessions.main.Session(
+                session=logind_sessions[2],
+                tty=self._mock_tty('pts/3'),
+                display=None,
+                display_idle=None,
+                username='auser',
+                processes=[stop_idle_sessions.main.SessionProcess(
+                                process=stop_idle_sessions.ps.Process(pid=20982,
+                                                                      cmdline="",
+                                                                      environ={}),
+                                tunneled_processes=[],
+                                tunneled_sessions=[]),
+                           stop_idle_sessions.main.SessionProcess(
+                                process=stop_idle_sessions.ps.Process(pid=20985,
+                                                                      cmdline="",
+                                                                      environ={}),
+                                tunneled_processes=[
+                                    stop_idle_sessions.ps.Process(pid=20272,
+                                                                  cmdline="",
+                                                                  environ={})
+                                ],
+                                tunneled_sessions=[session_7]),
+                           stop_idle_sessions.main.SessionProcess(
+                                process=stop_idle_sessions.ps.Process(pid=20986,
+                                                                      cmdline="",
+                                                                      environ={}),
+                                tunneled_processes=[],
+                                tunneled_sessions=[])]
         )
 
-        self.register_mock_session(
-                session_id="7",
-                session_type='tty',
-                uid=1000,
-                tty='pts/1',
-                scope="session-7.scope",
-                pids_and_tunnels={
-                    13268: ([], []),
-                    13271: ([], []),
-                    13272: ([], []),
-                    20272: ([], []),
-                    20277: ([], []),
-                    20278: ([], []),
-                    20287: ([], []),
-                    20288: ([], []),
-                    20295: ([], []),
-                    20308: ([], []),
-                    20313: ([], []),
-                    20318: ([], []),
-                    20320: ([], []),
-                    20327: ([], []),
-                    20362: ([], []),
-                    20373: ([], []),
-                    20393: ([], []),
-                    20396: ([], []),
-                    20402: ([], []),
-                    20403: ([], []),
-                    20405: ([], []),
-                    20410: ([], []),
-                    20412: ([], []),
-                    20427: ([], []),
-                    20438: ([], []),
-                    20447: ([], []),
-                    20468: ([], []),
-                    20587: ([], []),
-                    20594: ([], []),
-                    20601: ([], []),
-                    20607: ([], []),
-                    20616: ([], []),
-                    20620: ([], []),
-                    20622: ([], []),
-                    20625: ([], []),
-                    20626: ([], []),
-                    20631: ([], []),
-                    20633: ([], []),
-                    20637: ([], []),
-                    20639: ([], []),
-                    20643: ([], []),
-                    20644: ([], []),
-                    20651: ([], []),
-                    20655: ([], []),
-                    20661: ([], []),
-                    20663: ([], []),
-                    20665: ([], []),
-                    20668: ([], []),
-                    20673: ([], []),
-                    20674: ([], []),
-                    20705: ([], []),
-                    20726: ([], []),
-                    20736: ([], []),
-                    20741: ([], []),
-                    20749: ([], []),
-                    20765: ([], []),
-                    20767: ([], []),
-                    20778: ([], []),
-                    20783: ([], []),
-                    20790: ([], []),
-                    20791: ([], []),
-                    20805: ([], []),
-                    20810: ([], [])
-                },
-                assert_skipped=False
+        session_16 = stop_idle_sessions.main.Session(
+                session=logind_sessions[3],
+                tty=self._mock_tty('pts/2'),
+                display=None,
+                display_idle=None,
+                username='ansible',
+                processes=[stop_idle_sessions.main.SessionProcess(
+                                process=stop_idle_sessions.ps.Process(pid=27584,
+                                                                      cmdline="",
+                                                                      environ={}),
+                                tunneled_processes=[],
+                                tunneled_sessions=[]),
+                           stop_idle_sessions.main.SessionProcess(
+                                process=stop_idle_sessions.ps.Process(pid=27608,
+                                                                      cmdline="",
+                                                                      environ={}),
+                                tunneled_processes=[],
+                                tunneled_sessions=[]),
+                           stop_idle_sessions.main.SessionProcess(
+                                process=stop_idle_sessions.ps.Process(pid=27996,
+                                                                      cmdline="",
+                                                                      environ={}),
+                                tunneled_processes=[],
+                                tunneled_sessions=[]),
+                           stop_idle_sessions.main.SessionProcess(
+                                process=stop_idle_sessions.ps.Process(pid=28025,
+                                                                      cmdline="",
+                                                                      environ={}),
+                                tunneled_processes=[],
+                                tunneled_sessions=[]),
+                           stop_idle_sessions.main.SessionProcess(
+                                process=stop_idle_sessions.ps.Process(pid=28029,
+                                                                      cmdline="",
+                                                                      environ={}),
+                                tunneled_processes=[],
+                                tunneled_sessions=[]),
+                           stop_idle_sessions.main.SessionProcess(
+                                process=stop_idle_sessions.ps.Process(pid=28030,
+                                                                      cmdline="",
+                                                                      environ={}),
+                                tunneled_processes=[],
+                                tunneled_sessions=[]),
+                           stop_idle_sessions.main.SessionProcess(
+                                process=stop_idle_sessions.ps.Process(pid=28032,
+                                                                      cmdline="",
+                                                                      environ={}),
+                                tunneled_processes=[],
+                                tunneled_sessions=[])]
         )
 
-        self.register_mock_session(
-                session_id="c1",
-                session_type='wayland',
-                uid=42,
-                tty='tty1',
-                scope="session-c1.scope",
-                pids_and_tunnels={
-                    13679: ([], []),
-                    13704: ([], []),
-                    13712: ([], []),
-                    13713: ([], []),
-                    13717: ([], []),
-                    13752: ([], []),
-                    13793: ([], []),
-                    13802: ([], []),
-                    13807: ([], []),
-                    13810: ([], []),
-                    13818: ([], []),
-                    13821: ([], []),
-                    13824: ([], []),
-                    13827: ([], []),
-                    13835: ([], []),
-                    13864: ([], []),
-                    13866: ([], []),
-                    13870: ([], []),
-                    13871: ([], []),
-                    13875: ([], []),
-                    13877: ([], []),
-                    13878: ([], []),
-                    13881: ([], []),
-                    13883: ([], []),
-                    13890: ([], []),
-                    13900: ([], []),
-                    13904: ([], []),
-                    13907: ([], []),
-                    13911: ([], []),
-                    13954: ([], []),
-                    13988: ([], [])
-                },
-                assert_skipped=True
+        session_5 = stop_idle_sessions.main.Session(
+                session=logind_sessions[4],
+                tty=self._mock_tty('pts/0'),
+                display=None,
+                display_idle=None,
+                username='auser',
+                processes=[stop_idle_sessions.main.SessionProcess(
+                                process=stop_idle_sessions.ps.Process(pid=12033,
+                                                                      cmdline="",
+                                                                      environ={}),
+                                tunneled_processes=[],
+                                tunneled_sessions=[]),
+                           stop_idle_sessions.main.SessionProcess(
+                                process=stop_idle_sessions.ps.Process(pid=12036,
+                                                                      cmdline="",
+                                                                      environ={}),
+                                tunneled_processes=[],
+                                tunneled_sessions=[]),
+                           stop_idle_sessions.main.SessionProcess(
+                                process=stop_idle_sessions.ps.Process(pid=12037,
+                                                                      cmdline="",
+                                                                      environ={}),
+                                tunneled_processes=[],
+                                tunneled_sessions=[]),
+                           stop_idle_sessions.main.SessionProcess(
+                                process=stop_idle_sessions.ps.Process(pid=22103,
+                                                                      cmdline="",
+                                                                      environ={}),
+                                tunneled_processes=[],
+                                tunneled_sessions=[]),
+                           stop_idle_sessions.main.SessionProcess(
+                                process=stop_idle_sessions.ps.Process(pid=22105,
+                                                                      cmdline="",
+                                                                      environ={}),
+                                tunneled_processes=[],
+                                tunneled_sessions=[]),
+                           stop_idle_sessions.main.SessionProcess(
+                                process=stop_idle_sessions.ps.Process(pid=22106,
+                                                                      cmdline="",
+                                                                      environ={}),
+                                tunneled_processes=[],
+                                tunneled_sessions=[]),
+                           stop_idle_sessions.main.SessionProcess(
+                                process=stop_idle_sessions.ps.Process(pid=22135,
+                                                                      cmdline="",
+                                                                      environ={}),
+                                tunneled_processes=[],
+                                tunneled_sessions=[]),
+                           stop_idle_sessions.main.SessionProcess(
+                                process=stop_idle_sessions.ps.Process(pid=22136,
+                                                                      cmdline="",
+                                                                      environ={}),
+                                tunneled_processes=[],
+                                tunneled_sessions=[])]
         )
+
+        session_c1 = stop_idle_sessions.main.Session(
+                session=logind_sessions[5],
+                tty=self._mock_tty('tty1'),
+                display=':0',
+                display_idle=datetime.timedelta(seconds=99 * 60),
+                username='gdm',
+                processes=[stop_idle_sessions.main.SessionProcess(
+                                process=stop_idle_sessions.ps.Process(pid=13679,
+                                                                      cmdline="",
+                                                                      environ={}),
+                                tunneled_processes=[],
+                                tunneled_sessions=[]),
+                           stop_idle_sessions.main.SessionProcess(
+                                process=stop_idle_sessions.ps.Process(pid=13704,
+                                                                      cmdline="",
+                                                                      environ={}),
+                                tunneled_processes=[],
+                                tunneled_sessions=[]),
+                           stop_idle_sessions.main.SessionProcess(
+                                process=stop_idle_sessions.ps.Process(pid=13712,
+                                                                      cmdline="",
+                                                                      environ={}),
+                                tunneled_processes=[],
+                                tunneled_sessions=[]),
+                           stop_idle_sessions.main.SessionProcess(
+                                process=stop_idle_sessions.ps.Process(pid=13713,
+                                                                      cmdline="",
+                                                                      environ={}),
+                                tunneled_processes=[],
+                                tunneled_sessions=[]),
+                           stop_idle_sessions.main.SessionProcess(
+                                process=stop_idle_sessions.ps.Process(pid=13717,
+                                                                      cmdline="",
+                                                                      environ={}),
+                                tunneled_processes=[],
+                                tunneled_sessions=[]),
+                           stop_idle_sessions.main.SessionProcess(
+                                process=stop_idle_sessions.ps.Process(pid=13752,
+                                                                      cmdline="",
+                                                                      environ={}),
+                                tunneled_processes=[],
+                                tunneled_sessions=[]),
+                           stop_idle_sessions.main.SessionProcess(
+                                process=stop_idle_sessions.ps.Process(pid=13793,
+                                                                      cmdline="",
+                                                                      environ={}),
+                                tunneled_processes=[],
+                                tunneled_sessions=[]),
+                           stop_idle_sessions.main.SessionProcess(
+                                process=stop_idle_sessions.ps.Process(pid=13802,
+                                                                      cmdline="",
+                                                                      environ={}),
+                                tunneled_processes=[],
+                                tunneled_sessions=[]),
+                           stop_idle_sessions.main.SessionProcess(
+                                process=stop_idle_sessions.ps.Process(pid=13807,
+                                                                      cmdline="",
+                                                                      environ={}),
+                                tunneled_processes=[],
+                                tunneled_sessions=[]),
+                           stop_idle_sessions.main.SessionProcess(
+                                process=stop_idle_sessions.ps.Process(pid=13810,
+                                                                      cmdline="",
+                                                                      environ={}),
+                                tunneled_processes=[],
+                                tunneled_sessions=[]),
+                           stop_idle_sessions.main.SessionProcess(
+                                process=stop_idle_sessions.ps.Process(pid=13818,
+                                                                      cmdline="",
+                                                                      environ={}),
+                                tunneled_processes=[],
+                                tunneled_sessions=[]),
+                           stop_idle_sessions.main.SessionProcess(
+                                process=stop_idle_sessions.ps.Process(pid=13821,
+                                                                      cmdline="",
+                                                                      environ={}),
+                                tunneled_processes=[],
+                                tunneled_sessions=[]),
+                           stop_idle_sessions.main.SessionProcess(
+                                process=stop_idle_sessions.ps.Process(pid=13824,
+                                                                      cmdline="",
+                                                                      environ={}),
+                                tunneled_processes=[],
+                                tunneled_sessions=[]),
+                           stop_idle_sessions.main.SessionProcess(
+                                process=stop_idle_sessions.ps.Process(pid=13827,
+                                                                      cmdline="",
+                                                                      environ={}),
+                                tunneled_processes=[],
+                                tunneled_sessions=[]),
+                           stop_idle_sessions.main.SessionProcess(
+                                process=stop_idle_sessions.ps.Process(pid=13835,
+                                                                      cmdline="",
+                                                                      environ={}),
+                                tunneled_processes=[],
+                                tunneled_sessions=[]),
+                           stop_idle_sessions.main.SessionProcess(
+                                process=stop_idle_sessions.ps.Process(pid=13864,
+                                                                      cmdline="",
+                                                                      environ={}),
+                                tunneled_processes=[],
+                                tunneled_sessions=[]),
+                           stop_idle_sessions.main.SessionProcess(
+                                process=stop_idle_sessions.ps.Process(pid=13866,
+                                                                      cmdline="",
+                                                                      environ={}),
+                                tunneled_processes=[],
+                                tunneled_sessions=[]),
+                           stop_idle_sessions.main.SessionProcess(
+                                process=stop_idle_sessions.ps.Process(pid=13870,
+                                                                      cmdline="",
+                                                                      environ={}),
+                                tunneled_processes=[],
+                                tunneled_sessions=[]),
+                           stop_idle_sessions.main.SessionProcess(
+                                process=stop_idle_sessions.ps.Process(pid=13871,
+                                                                      cmdline="",
+                                                                      environ={}),
+                                tunneled_processes=[],
+                                tunneled_sessions=[]),
+                           stop_idle_sessions.main.SessionProcess(
+                                process=stop_idle_sessions.ps.Process(pid=13875,
+                                                                      cmdline="",
+                                                                      environ={}),
+                                tunneled_processes=[],
+                                tunneled_sessions=[]),
+                           stop_idle_sessions.main.SessionProcess(
+                                process=stop_idle_sessions.ps.Process(pid=13877,
+                                                                      cmdline="",
+                                                                      environ={}),
+                                tunneled_processes=[],
+                                tunneled_sessions=[]),
+                           stop_idle_sessions.main.SessionProcess(
+                                process=stop_idle_sessions.ps.Process(pid=13878,
+                                                                      cmdline="",
+                                                                      environ={}),
+                                tunneled_processes=[],
+                                tunneled_sessions=[]),
+                           stop_idle_sessions.main.SessionProcess(
+                                process=stop_idle_sessions.ps.Process(pid=13881,
+                                                                      cmdline="",
+                                                                      environ={}),
+                                tunneled_processes=[],
+                                tunneled_sessions=[]),
+                           stop_idle_sessions.main.SessionProcess(
+                                process=stop_idle_sessions.ps.Process(pid=13883,
+                                                                      cmdline="",
+                                                                      environ={}),
+                                tunneled_processes=[],
+                                tunneled_sessions=[]),
+                           stop_idle_sessions.main.SessionProcess(
+                                process=stop_idle_sessions.ps.Process(pid=13890,
+                                                                      cmdline="",
+                                                                      environ={}),
+                                tunneled_processes=[],
+                                tunneled_sessions=[]),
+                           stop_idle_sessions.main.SessionProcess(
+                                process=stop_idle_sessions.ps.Process(pid=13900,
+                                                                      cmdline="",
+                                                                      environ={}),
+                                tunneled_processes=[],
+                                tunneled_sessions=[]),
+                           stop_idle_sessions.main.SessionProcess(
+                                process=stop_idle_sessions.ps.Process(pid=13904,
+                                                                      cmdline="",
+                                                                      environ={}),
+                                tunneled_processes=[],
+                                tunneled_sessions=[]),
+                           stop_idle_sessions.main.SessionProcess(
+                                process=stop_idle_sessions.ps.Process(pid=13907,
+                                                                      cmdline="",
+                                                                      environ={}),
+                                tunneled_processes=[],
+                                tunneled_sessions=[]),
+                           stop_idle_sessions.main.SessionProcess(
+                                process=stop_idle_sessions.ps.Process(pid=13911,
+                                                                      cmdline="",
+                                                                      environ={}),
+                                tunneled_processes=[],
+                                tunneled_sessions=[]),
+                           stop_idle_sessions.main.SessionProcess(
+                                process=stop_idle_sessions.ps.Process(pid=13954,
+                                                                      cmdline="",
+                                                                      environ={}),
+                                tunneled_processes=[],
+                                tunneled_sessions=[]),
+                           stop_idle_sessions.main.SessionProcess(
+                                process=stop_idle_sessions.ps.Process(pid=13988,
+                                                                      cmdline="",
+                                                                      environ={}),
+                                tunneled_processes=[],
+                                tunneled_sessions=[])]
+        )
+
+        return [session_13, session_7, session_14, session_16, session_5,
+                session_c1]
+
+    def _expected_results(self) -> List[Tuple[bool, bool,
+                                              Optional[datetime.timedelta]]]:
+        """Specify the expected handling for each of the _expected_sessions
+
+        The returned tuple for _expected_results is as follows:
+          (skipped_exempt: bool, terminated: bool, idle_metric: timedelta)
+        """
+
+        return [
+                # session ID = 13
+                # As a noninteractive session, it doesn't have any idletimes.
+                (True, False, None),
+
+                # session ID = 7
+                # 17-minute idle (terminated) based on DISPLAY=:1
+                (False, True, datetime.timedelta(seconds=17 * 60)),
+
+                # session ID = 14
+                # 17-minute idle (terminated) based on session 7
+                (False, True, datetime.timedelta(seconds=17 * 60)),
+
+                # session ID = 16
+                # As one of ansible's sessions, it doesn't get checked.
+                (True, False, datetime.timedelta(seconds=65 * 60)),
+
+                # session ID = 5
+                # 3-minute idle (NOT terminated) based on pty atime/mtime
+                (False, False, datetime.timedelta(seconds=3 * 60)),
+
+                # session ID = c1
+                # 99-minute idle (NOT terminated) based on DISPLAY=:0
+                (True, False, datetime.timedelta(seconds=99 * 60))
+        ]

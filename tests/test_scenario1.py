@@ -9,11 +9,12 @@ and there is an idle GDM session running.
 # dataset (albeit with actual Python objects).
 # pylint: disable=too-many-lines
 
+
 import datetime
 from ipaddress import ip_address, IPv4Address, IPv6Address
 from textwrap import dedent
 from typing import Any, List, Mapping, Optional, Set, Tuple, Union
-from unittest.mock import Mock
+from unittest.mock import MagicMock, Mock
 
 import stop_idle_sessions.logind
 import stop_idle_sessions.main
@@ -968,8 +969,9 @@ class Scenario1MainLoopTestCase(test_main.MainLoopTestCase):
                                 tunneled_processes=[],
                                 tunneled_sessions=[]),
                            stop_idle_sessions.main.SessionProcess(
-                                process=Mock(spec_set=stop_idle_sessions.ps.Process,
-                                             pid=952592, cmdline="", environ={}),
+                                process=stop_idle_sessions.ps.Process(pid=952592,
+                                                                      cmdline="",
+                                                                      environ={}),
                                 tunneled_processes=[],
                                 tunneled_sessions=[]),
                            stop_idle_sessions.main.SessionProcess(

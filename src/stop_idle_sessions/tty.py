@@ -28,16 +28,30 @@ class TTY:
             raise SessionParseError(f'invalid shortname for tty/pts: {name}')
 
     def __eq__(self, other):
-        if not hasattr(other, 'name') or self.name != other.name:
+        return TTY.compare(self, other)
+
+    @staticmethod
+    def compare(me, other) -> bool:
+        """Duck-type comparison of two objects claiming to be TTYs"""
+
+        if (not hasattr(me, 'name') or
+            not hasattr(other, 'name') or
+            me.name != other.name):
             return False
 
-        if not hasattr(other, 'full_name') or self.full_name != other.full_name:
+        if (not hasattr(me, 'full_name') or
+            not hasattr(other, 'full_name') or
+            me.full_name != other.full_name):
             return False
 
-        if not hasattr(other, 'atime') or self.atime != other.atime:
+        if (not hasattr(me, 'atime') or
+            not hasattr(other, 'atime') or
+            me.atime != other.atime):
             return False
 
-        if not hasattr(other, 'mtime') or self.mtime != other.mtime:
+        if (not hasattr(me, 'mtime') or
+            not hasattr(other, 'mtime') or
+            me.mtime != other.mtime):
             return False
 
         return True

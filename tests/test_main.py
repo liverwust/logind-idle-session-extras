@@ -137,8 +137,12 @@ class MainLoopTestCase(TestCase):
         for expected, actual in matched_pairs:
             self.assertEqual(expected.session.uid,
                              actual.session.uid)
-            self.assertEqual(expected.tty.name,
-                             actual.tty.name)
+            self.assertTrue(
+                    stop_idle_sessions.tty.TTY.compare(
+                        expected.tty,
+                        actual.tty
+                    )
+            )
             self.assertEqual(expected.session.scope,
                              actual.session.scope)
 
@@ -202,7 +206,8 @@ class MainLoopTestCase(TestCase):
                                        actual_idle_metric,
                                        delta=datetime.timedelta(seconds=1))
 
-            if stop_idle_sessions.main.skip_ineligible_session(session):
+            if stop_idle_sessions.main.skip_ineligible_session(session,
+                                                               self._excluded_users()):
                 self.assertTrue(skipped_exempt)
             else:
                 self.assertFalse(skipped_exempt)

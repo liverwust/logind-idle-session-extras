@@ -2,9 +2,11 @@
 
 
 import argparse
+import configparser
 import datetime
 from itertools import product
 import logging
+import re
 import sys
 import traceback
 from typing import List, Mapping, NamedTuple, Optional
@@ -19,6 +21,7 @@ import stop_idle_sessions.x11
 
 
 logger = logging.getLogger(__name__)
+_DEFAULT_CONFIG_FILE = "/etc/stop-idle-sessions.conf"
 
 
 class SessionProcess(NamedTuple):
@@ -317,7 +320,7 @@ def compute_idleness_metric(session: Session,
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
-            prog='/usr/libexec/platform-python -m stop_idle_sessions.main',
+            prog='stop_idle_sessions.main',
             description=("Stop idle `systemd-logind` sessions to prevent "
                          "interactive access from unattended terminals. "
                          "E.g., a laptop left unlocked in a coffee shop, "
@@ -333,11 +336,58 @@ if __name__ == "__main__":
                              "(either to stdout during dry-run, or syslog "
                              "normally)")
     parser.add_argument('-c', '--config-file', action='store',
-                        default="/etc/stop-idle-sessions.conf",
+                        default=_DEFAULT_CONFIG_FILE,
                         help="Override the location of the configuration INI "
                              "format file")
 
     args = parser.parse_args()
+
+    config = configparser.ConfigParser()
+    config['stop-idle-sessions'] = {
+            'dry-run': 'no',
+            'verbose': 'no',
+            'excluded-users': '',
+            'timeout': '15'
+    }
+
+    try:
+        with open(args.config_file, "r") as config_f:
+            config.read_file(config_f, source=args.config_file)
+    except OSError as err:
+        # If it was the default file that failed to open, then just ignore the
+        # failure. Otherwise, this is a fatal condition.
+        if args.config_file == _DEFAULT_CONFIG_FILE:
+            logger.error('Problem while reading a custom config file '
+                         'located at %s: %s',
+                         args.config_file,
+                         str(err))
+            raise err
+
+    try:
+        dry_run: bool = config.getboolean('stop-idle-sessions', 'dry-run')
+        verbose: bool = config.getboolean('stop-idle-sessions', 'verbose')
+        excluded_users: List[str] = list(map(lambda x: x.strip(),
+                                             re.split(r'[,;:]',
+                                                      config.get('stop-idle-sessions',
+                                                                 'excluded-users'))))
+        timeout: int = config.getint('stop-idle-sessions', 'timeout')
+    except ValueError as err:
+        logger.error('Problem while parsing arguments: %s',
+                     str(err))
+        raise err
+
+    # Command-line argument can override the config bools
+    if args.dry_run:
+        dry_run = True
+    if args.verbose:
+        verbose = True
+
+    sessions = load_sessions()
+    for session in sessions:
+        if not skip_ineligible_session(session):
+            try:
+                idletime = 
+
     if args.verbose:
         logging.basicConfig(level=logging.DEBUG)
     load_sessions()

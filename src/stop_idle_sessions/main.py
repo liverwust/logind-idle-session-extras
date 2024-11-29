@@ -318,7 +318,10 @@ def compute_idleness_metric(session: Session,
     return minimum_idle
 
 
-if __name__ == "__main__":
+# This is a bit complicated, but it's the glue for everything else.
+# pylint: disable-next=too-many-branches
+def main():
+    """Overall main loop routine for this application"""
     parser = argparse.ArgumentParser(
             prog='stop_idle_sessions.main',
             description=("Stop idle `systemd-logind` sessions to prevent "
@@ -351,7 +354,7 @@ if __name__ == "__main__":
     }
 
     try:
-        with open(args.config_file, "r") as config_f:
+        with open(args.config_file, "r", encoding='utf-8') as config_f:
             config.read_file(config_f, source=args.config_file)
     except OSError as err:
         # If it was the default file that failed to open, then just ignore the
@@ -382,12 +385,45 @@ if __name__ == "__main__":
     if args.verbose:
         verbose = True
 
+    if verbose:
+        logger.setLevel(logging.DEBUG)
+
+    now = datetime.datetime.now()
     sessions = load_sessions()
     for session in sessions:
-        if not skip_ineligible_session(session):
+        if not skip_ineligible_session(session, excluded_users):
+            tty_name = ""
+            if session.tty is not None:
+                tty_name = session.tty.name
+
             try:
-                idletime = 
+                idletime = compute_idleness_metric(session, now)
+                if idletime >= datetime.timedelta(seconds=60 * timeout):
+
+                    logger.warning('Stopping pid=%d, leader of session=%s, '
+                                   'owned by %s@%s, which has been idle for '
+                                   '%d minutes',
+                                   session.session.leader,
+                                   session.session.session_id,
+                                   session.username,
+                                   tty_name,
+                                   idletime.total_seconds() // 60)
+
+                    if not dry_run:
+                        session.session.kill_session_leader()
+
+            except SessionParseError as err:
+                logger.warning('Could not determine idletime for session=%s, '
+                               'owned by %s@%s, for reason %s ',
+                               session.session.session_id,
+                               session.username,
+                               tty_name,
+                               err.message)
 
     if args.verbose:
         logging.basicConfig(level=logging.DEBUG)
     load_sessions()
+
+
+if __name__ == "__main__":
+    main()

@@ -5,6 +5,7 @@ from typing import List
 
 from gi.repository import Gio, GLib
 
+import stop_idle_sessions.ps
 from .exception import SessionParseError
 
 
@@ -118,8 +119,11 @@ class Session:
 
     def kill_session_leader(self) -> None:
         """Send appropriate signal(s) to the session leader to terminate it"""
-        # TODO: fix this!
-        raise NotImplementedError('TODO: fix this!')
+
+        if self.leader == 0:
+            raise ValueError(f'Cannot terminate session {self.session_id} '
+                             f'with no Leader process')
+        stop_idle_sessions.ps.terminate_then_kill(self.leader)
 
 
 def get_all_sessions() -> List[Session]:

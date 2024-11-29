@@ -33,6 +33,33 @@ class Process(NamedTuple):
         return True
 
 
+def process_by_pid(pid: int) -> Process:
+    """Obtain a specific Process by its PID"""
+    ps_obj = psutil.Process(pid)
+    cmdline = ' '.join(ps_obj.cmdline())
+    return Process(
+            pid=ps_obj.pid,
+            cmdline=cmdline,
+            environ=ps_obj.environ()
+    )
+
+
+def terminate_then_kill(pid: int) -> None:
+    """SIGTERM, then wait for a few seconds, then SIGKILL a process"""
+
+    try:
+        p = psutil.Process(pid)
+
+        p.terminate()
+        _, alive = psutil.wait_procs([p], timeout=3)
+        if p in alive:
+            p.kill()
+
+    except psutil.NoSuchProcess:
+        # Guess it's dead already ... ?
+        pass
+
+
 def processes_in_scope_path(scope_path: str,
                             open_func: Callable = open) -> List[Process]:
     """Obtain the set of PIDs for a given fully-qualified scope path"""
@@ -47,13 +74,7 @@ def processes_in_scope_path(scope_path: str,
                     "r") as cgroup_f:
             for cgroup_line in cgroup_f.readlines():
                 pid = int(cgroup_line)
-                ps_obj = psutil.Process(pid)
-                cmdline = ' '.join(ps_obj.cmdline())
-                processes.append(Process(
-                        pid=ps_obj.pid,
-                        cmdline=cmdline,
-                        environ=ps_obj.environ()
-                ))
+                processes.append(process_by_pid(pid))
         return processes
     except OSError as err:
         raise SessionParseError(f"Could not read cgroup pids for "

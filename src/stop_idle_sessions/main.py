@@ -76,6 +76,38 @@ class Session(NamedTuple):
             return False
         return self.session.session_id == other.session.session_id
 
+    def __str__(self):
+        return self.string_representation()
+
+    def string_representation(self,
+                              idleness: Optional[datetime.timedelta] = None) -> str:
+        """Provide a string representation of the Session, maybe with idleness"""
+
+        tty_string: str = "notty"
+        if self.tty is not None:
+            tty_string = self.tty.name
+
+        nr_processes: int = len(self.processes)
+        nr_tunnels: int = sum(map(lambda p: len(p.tunneled_processes),
+                                  self.processes))
+        nr_sessions: int = sum(map(lambda p: len(p.tunneled_sessions),
+                                   self.processes))
+
+        backend_text: str = f"w/ {nr_processes} processes"
+        if nr_tunnels > 0:
+            backend_text += f" hosting {nr_tunnels}"
+            if nr_sessions > 0:
+                backend_text += f" to {nr_sessions} backend sessions"
+
+        idleness_text: str = ""
+        if idleness is not None:
+            idleness_text = f" -- idle for {idleness.total_seconds() // 60} minutes"
+
+        return (f'session id="{self.session.session_id} '
+                f'leader={self.session.leader} '
+                f'user={self.username}@{tty_string} '
+                f'({backend_text}){idleness_text}')
+
 
 # Constructing the tree involves many local variables, necessarily
 # pylint: disable-next=too-many-locals, too-many-branches
@@ -158,7 +190,7 @@ def load_sessions() -> List[Session]:
 
         except SessionParseError as err:
             logger.warning('Could not successfully parse information related '
-                           'to session %s: %s',
+                           'to session id="%s": %s',
                            logind_session.session_id,
                            err.message)
             traceback.print_exc(file=sys.stderr)
@@ -171,32 +203,20 @@ def load_sessions() -> List[Session]:
                 if backend_process_a == process_b.process:
                     process_a.tunneled_sessions.append(session_b)
 
-    # Send the identified Sessions to the debug log
-    logger.debug('Identified %d sessions to be reviewed:', len(sessions))
-    for index, session in enumerate(sessions):
-        tty_string = "notty"
-        if session.tty is not None:
-            tty_string = session.tty.name
-        logger.debug('%d (id=%s): %s@%s with %d processes and '
-                     '%d active tunnels to %d backend sessions',
-                     index + 1,  # make index more human-friendly by adding 1
-                     session.session.session_id,
-                     session.username,
-                     tty_string,
-                     len(session.processes),
-                     sum(map(lambda p: len(p.tunneled_processes), session.processes)),
-                     sum(map(lambda p: len(p.tunneled_sessions), session.processes)))
-
     return sessions
 
 
 def skip_ineligible_session(session: Session,
-                            excluded_users: Optional[List[str]] = None) -> bool:
+                            excluded_users: Optional[List[str]] = None,
+                            idleness: Optional[datetime.timedelta] = None) -> bool:
     """Check whether a session is ineligible for idleness timeout enforcement
 
     Returns True if this session meets any of the criteria for being
     "ineligible" (see README.md) and should not be processed further. If
     False, then the caller should continue processing.
+
+    The provided idleness is not used; it's just passed to the logging
+    functions to create a string representation if provided.
     """
 
     # Graphical sessions should be protected by screensavers, not idle
@@ -204,30 +224,30 @@ def skip_ineligible_session(session: Session,
     # README.md for details.)
     # https://github.com/systemd/systemd/blob/v256.8/src/login/logind-session.c#L1650
     if session.session.session_type in ('x11', 'wayland', 'mir'):
-        logger.debug('Skipping graphical session id=%s',
-                     session.session.session_id)
+        logger.debug('Skipping graphical %s',
+                     session.string_representation(idleness))
         return True
 
     # systemd-logind sessions without an assigned teletype (TTY/PTY) which
     # represent "noninteractive" sessions.
     if session.tty is None:
-        logger.debug('Skipping noninteractive session id=%s',
-                     session.session.session_id)
+        logger.debug('Skipping noninteractive %s',
+                     session.string_representation(idleness))
         return True
 
     # systemd-logind sessions belonging to one of the "excluded_users" in the
     # provided list (if any).
     if excluded_users is not None and session.username in excluded_users:
-        logger.debug('Skipping session id=%s owned by excluded user %s',
-                     session.session.session_id,
-                     session.username)
+        logger.debug('Skipping excluded user (%s) %s',
+                     session.username,
+                     session.string_representation(idleness))
         return True
 
     # systemd-logind session whose Scope Leader has been terminated. See
     # README.md for a discussion of why this is relevant.
     if session.session.leader == 0:
-        logger.debug('Skipping "lingering" (leader=pid 0) session id=%s',
-                     session.session.session_id)
+        logger.debug('Skipping lingering %s',
+                     session.string_representation(idleness))
         return True
 
     return False
@@ -311,10 +331,10 @@ def compute_idleness_metric(session: Session,
         raise SessionParseError('Could not identify an idle duration for ' +
                                 session.session.session_id)
 
-    logger.debug("Computed %s to have been idle for %d seconds based on %s",
-                 session.session.session_id,
-                 minimum_idle.total_seconds(),
+    logger.debug("Computed idleness for %s (based on %s)",
+                 session.string_representation(minimum_idle),
                  determined_by)
+
     return minimum_idle
 
 
@@ -392,32 +412,19 @@ def main():
     sessions = load_sessions()
     for session in sessions:
         if not skip_ineligible_session(session, excluded_users):
-            tty_name = ""
-            if session.tty is not None:
-                tty_name = session.tty.name
-
             try:
                 idletime = compute_idleness_metric(session, now)
                 if idletime >= datetime.timedelta(seconds=60 * timeout):
 
-                    logger.warning('Stopping pid=%d, leader of session=%s, '
-                                   'owned by %s@%s, which has been idle for '
-                                   '%d minutes',
-                                   session.session.leader,
-                                   session.session.session_id,
-                                   session.username,
-                                   tty_name,
-                                   idletime.total_seconds() // 60)
+                    logger.warning('Terminating %s',
+                                   session.string_representation(idletime))
 
                     if not dry_run:
                         session.session.kill_session_leader()
 
             except SessionParseError as err:
-                logger.warning('Could not determine idletime for session=%s, '
-                               'owned by %s@%s, for reason %s ',
-                               session.session.session_id,
-                               session.username,
-                               tty_name,
+                logger.warning('Could not determine idletime for %s (%s)',
+                               session.string_representation(),
                                err.message)
 
 

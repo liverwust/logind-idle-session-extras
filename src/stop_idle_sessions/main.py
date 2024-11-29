@@ -359,7 +359,7 @@ def main():
     except OSError as err:
         # If it was the default file that failed to open, then just ignore the
         # failure. Otherwise, this is a fatal condition.
-        if args.config_file == _DEFAULT_CONFIG_FILE:
+        if args.config_file != _DEFAULT_CONFIG_FILE:
             logger.error('Problem while reading a custom config file '
                          'located at %s: %s',
                          args.config_file,

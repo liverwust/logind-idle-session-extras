@@ -411,21 +411,26 @@ def main():
     now = datetime.datetime.now()
     sessions = load_sessions()
     for session in sessions:
-        if not skip_ineligible_session(session, excluded_users):
-            try:
-                idletime = compute_idleness_metric(session, now)
-                if idletime >= datetime.timedelta(seconds=60 * timeout):
+        skip_session = skip_ineligible_session(session, excluded_users)
 
-                    logger.warning('Terminating %s',
+        try:
+            idletime = compute_idleness_metric(session, now)
+            if idletime >= datetime.timedelta(seconds=60 * timeout):
+
+                if dry_run:
+                    logger.warning('Not terminating (dry run) %s',
                                    session.string_representation(idletime))
+                else:
+                    logger.warning('Terminating (dry run) %s',
+                                   session.string_representation(idletime))
+                    session.session.kill_session_leader()
 
-                    if not dry_run:
-                        session.session.kill_session_leader()
-
-            except SessionParseError as err:
-                logger.warning('Could not determine idletime for %s (%s)',
-                               session.string_representation(),
-                               err.message)
+        except SessionParseError as err:
+            logger.debug('Could not determine idletime for %s (%s)',
+                         session.string_representation(),
+                         err.message)
+            if not skip_session:
+                raise err
 
 
 if __name__ == "__main__":

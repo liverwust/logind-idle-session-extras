@@ -386,7 +386,7 @@ def main():
         verbose = True
 
     if verbose:
-        logger.setLevel(logging.DEBUG)
+        logging.basicConfig(level=logging.DEBUG)
 
     now = datetime.datetime.now()
     sessions = load_sessions()
@@ -419,10 +419,6 @@ def main():
                                session.username,
                                tty_name,
                                err.message)
-
-    if args.verbose:
-        logging.basicConfig(level=logging.DEBUG)
-    load_sessions()
 
 
 if __name__ == "__main__":

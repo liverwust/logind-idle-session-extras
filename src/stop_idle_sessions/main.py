@@ -6,6 +6,7 @@ import configparser
 import datetime
 from itertools import product
 import logging
+import logging.handlers
 import re
 import sys
 import traceback
@@ -332,7 +333,7 @@ def compute_idleness_metric(session: Session,
 
 
 # This is a bit complicated, but it's the glue for everything else.
-# pylint: disable-next=too-many-branches
+# pylint: disable-next=too-many-branches, too-many-locals, too-many-statements
 def main():
     """Overall main loop routine for this application"""
     parser = argparse.ArgumentParser(
@@ -347,6 +348,9 @@ def main():
                         help=("Don't actually take any actions, but just log "
                               "(to stdout, not syslog) what would have "
                               "happened"))
+    parser.add_argument('-s', '--syslog', action='store_true',
+                        help=("Write logged messages (including debug logs, "
+                              "if configured) to syslog instead of stdout. "))
     parser.add_argument('-v', '--verbose', action='store_true',
                         help="Increase verbosity to incorporate debug logs "
                              "(either to stdout during dry-run, or syslog "
@@ -361,6 +365,7 @@ def main():
     config = configparser.ConfigParser()
     config['stop-idle-sessions'] = {
             'dry-run': 'no',
+            'syslog': 'no',
             'verbose': 'no',
             'excluded-users': '',
             'timeout': '15'
@@ -381,6 +386,7 @@ def main():
 
     try:
         dry_run: bool = config.getboolean('stop-idle-sessions', 'dry-run')
+        syslog: bool = config.getboolean('stop-idle-sessions', 'syslog')
         verbose: bool = config.getboolean('stop-idle-sessions', 'verbose')
         excluded_users: List[str] = list(map(lambda x: x.strip(),
                                              re.split(r'[,;:]',
@@ -395,11 +401,18 @@ def main():
     # Command-line argument can override the config bools
     if args.dry_run:
         dry_run = True
+    if args.syslog:
+        syslog = True
     if args.verbose:
         verbose = True
 
+    if syslog:
+        logger.addHandler(logging.handlers.SysLogHandler(address='/dev/log'))
+    else:
+        logger.addHandler(logging.StreamHandler())
+
     if verbose:
-        logging.basicConfig(level=logging.DEBUG)
+        logger.setLevel(logging.WARNING)
 
     now = datetime.datetime.now()
     sessions = load_sessions()

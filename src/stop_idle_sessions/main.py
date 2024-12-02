@@ -162,7 +162,9 @@ def load_sessions() -> List[Session]:
                 ))
 
             session_tty: Optional[stop_idle_sessions.tty.TTY] = None
-            if logind_session.tty != "":
+            # If a session is "lingering" (i.e., has no remaining Leader
+            # process), then we cannot and do not trust its tty string.
+            if logind_session.tty != "" and logind_session.leader != 0:
                 session_tty = stop_idle_sessions.tty.TTY(
                         logind_session.tty
                 )

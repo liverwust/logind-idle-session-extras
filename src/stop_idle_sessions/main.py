@@ -104,7 +104,7 @@ class Session(NamedTuple):
         if idleness is not None:
             idleness_text = f" -- idle for {idleness.total_seconds() // 60} minutes"
 
-        return (f'session id="{self.session.session_id} '
+        return (f'session id="{self.session.session_id}" '
                 f'leader={self.session.leader} '
                 f'user={self.username}@{tty_string} '
                 f'({backend_text}){idleness_text}')
@@ -414,7 +414,7 @@ def main():
         logger.addHandler(logging.StreamHandler())
 
     if verbose:
-        logger.setLevel(logging.WARNING)
+        logger.setLevel(logging.DEBUG)
 
     now = datetime.datetime.now()
     sessions = load_sessions()

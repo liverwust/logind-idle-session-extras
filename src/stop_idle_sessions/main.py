@@ -407,7 +407,9 @@ def main():
         verbose = True
 
     if syslog:
-        logger.addHandler(logging.handlers.SysLogHandler(address='/dev/log'))
+        handler = logging.handlers.SysLogHandler(address='/dev/log')
+        handler.ident = 'stop-idle-sessions'
+        logger.addHandler(handler)
     else:
         logger.addHandler(logging.StreamHandler())
 

@@ -206,8 +206,12 @@ class MainLoopTestCase(TestCase):
                                        actual_idle_metric,
                                        delta=datetime.timedelta(seconds=1))
 
-            if stop_idle_sessions.main.skip_ineligible_session(session,
-                                                               self._excluded_users()):
+            skip_ineligible, _ = stop_idle_sessions.main.skip_ineligible_session(
+                    session,
+                    self._excluded_users()
+            )
+
+            if skip_ineligible:
                 self.assertTrue(skipped_exempt)
             else:
                 self.assertFalse(skipped_exempt)

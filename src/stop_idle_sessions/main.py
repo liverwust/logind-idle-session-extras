@@ -9,7 +9,7 @@ import logging
 import re
 import sys
 import traceback
-from typing import List, Mapping, NamedTuple, Optional
+from typing import List, Mapping, NamedTuple, Optional, Tuple
 
 from stop_idle_sessions.exception import SessionParseError
 import stop_idle_sessions.getent
@@ -209,16 +209,16 @@ def load_sessions() -> List[Session]:
 
 
 def skip_ineligible_session(session: Session,
-                            excluded_users: Optional[List[str]] = None,
-                            idleness: Optional[datetime.timedelta] = None) -> bool:
+                            excluded_users: Optional[List[str]] = None) -> Tuple[bool,
+                                                                                 str]:
     """Check whether a session is ineligible for idleness timeout enforcement
 
     Returns True if this session meets any of the criteria for being
     "ineligible" (see README.md) and should not be processed further. If
     False, then the caller should continue processing.
 
-    The provided idleness is not used; it's just passed to the logging
-    functions to create a string representation if provided.
+    The returned string is a short descriptor for why the session was skipped.
+    It is blank if the session was not skipped.
     """
 
     # Graphical sessions should be protected by screensavers, not idle
@@ -226,33 +226,24 @@ def skip_ineligible_session(session: Session,
     # README.md for details.)
     # https://github.com/systemd/systemd/blob/v256.8/src/login/logind-session.c#L1650
     if session.session.session_type in ('x11', 'wayland', 'mir'):
-        logger.debug('Skipping graphical %s',
-                     session.string_representation(idleness))
-        return True
+        return True, 'graphical'
 
     # systemd-logind sessions without an assigned teletype (TTY/PTY) which
     # represent "noninteractive" sessions.
     if session.tty is None:
-        logger.debug('Skipping noninteractive %s',
-                     session.string_representation(idleness))
-        return True
+        return True, 'noninteractive'
 
     # systemd-logind sessions belonging to one of the "excluded_users" in the
     # provided list (if any).
     if excluded_users is not None and session.username in excluded_users:
-        logger.debug('Skipping excluded user (%s) %s',
-                     session.username,
-                     session.string_representation(idleness))
-        return True
+        return True, f'excluded user ({session.username})'
 
     # systemd-logind session whose Scope Leader has been terminated. See
     # README.md for a discussion of why this is relevant.
     if session.session.leader == 0:
-        logger.debug('Skipping lingering %s',
-                     session.string_representation(idleness))
-        return True
+        return True, 'lingering'
 
-    return False
+    return False, ''
 
 
 def compute_idleness_metric(session: Session,
@@ -413,13 +404,17 @@ def main():
     now = datetime.datetime.now()
     sessions = load_sessions()
     for session in sessions:
-        skip_session = skip_ineligible_session(session, excluded_users)
+        skip_session, why = skip_ineligible_session(session, excluded_users)
 
         try:
             idletime = compute_idleness_metric(session, now)
-            if idletime >= datetime.timedelta(seconds=60 * timeout):
 
-                if dry_run:
+            if idletime >= datetime.timedelta(seconds=60 * timeout):
+                if skip_session:
+                    logger.debug('Skipping %s session %s',
+                                 why,
+                                 session.string_representation(idletime))
+                elif dry_run:
                     logger.warning('Not terminating (dry run) %s',
                                    session.string_representation(idletime))
                 else:

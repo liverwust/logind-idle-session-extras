@@ -125,7 +125,7 @@ class SSInvocation:
                                     'system `ss` command') from err
 
         # LISTEN 0 128 0.0.0.0:22 0.0.0.0:* users:(("sshd",pid=5533,fd=3))
-        socket_re = re.compile(r'^(?P<State>[-A-Z]+)\s+'
+        socket_re = re.compile(r'^(?P<State>[-A-Z0-9]+)\s+'
                             r'(?P<RecvQ>\d+)\s+'
                             r'(?P<SendQ>\d+)\s+'
                             r'\[?(?P<LocalAddress>[:.0-9]+)\]?:'

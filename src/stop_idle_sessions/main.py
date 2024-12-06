@@ -367,6 +367,7 @@ def main():
             'dry-run': 'no',
             'syslog': 'no',
             'verbose': 'no',
+            'debug-log': '',
             'excluded-users': '',
             'timeout': '15'
     }
@@ -388,6 +389,7 @@ def main():
         dry_run: bool = config.getboolean('stop-idle-sessions', 'dry-run')
         syslog: bool = config.getboolean('stop-idle-sessions', 'syslog')
         verbose: bool = config.getboolean('stop-idle-sessions', 'verbose')
+        debug_log: str = config.get('stop-idle-sessions', 'debug-log')
         excluded_users: List[str] = list(map(lambda x: x.strip(),
                                              re.split(r'[,;:]',
                                                       config.get('stop-idle-sessions',
@@ -407,14 +409,20 @@ def main():
         verbose = True
 
     if syslog:
-        handler = logging.handlers.SysLogHandler(address='/dev/log')
-        handler.ident = 'stop-idle-sessions '
-        logger.addHandler(handler)
-    else:
-        logger.addHandler(logging.StreamHandler())
+        syslog_handler = logging.handlers.SysLogHandler(address='/dev/log')
+        syslog_handler.ident = 'stop-idle-sessions '
+        logger.addHandler(syslog_handler)
 
-    if verbose:
-        logger.setLevel(logging.DEBUG)
+        if verbose and debug_log != "":
+            logger.setLevel(logging.DEBUG)
+            debug_handler = logging.FileHandler(debug_log, encoding='utf-8')
+            debug_handler.setFormatter(
+                    logging.Formatter(fmt='%(asctime)s %(message)s')
+            )
+            logger.addHandler(debug_handler)
+
+    elif verbose:
+        logging.basicConfig(level=logging.DEBUG)
 
     now = datetime.datetime.now()
     sessions = load_sessions()
@@ -433,7 +441,7 @@ def main():
                     logger.warning('Not terminating (dry run) %s',
                                    session.string_representation(idletime))
                 else:
-                    logger.warning('Terminating (dry run) %s',
+                    logger.warning('Terminating %s',
                                    session.string_representation(idletime))
                     session.session.kill_session_leader()
 

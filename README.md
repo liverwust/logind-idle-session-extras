@@ -30,6 +30,60 @@ with Xvnc), and file copying. This software package intends to address
 "communications session[s]" and to "de-allocate [OpenSSH] networking
 assignments" after "[established] periods of activity."
 
+## Configuration
+
+The application should be run by means of the following command, on a timer
+(either via SystemD or cron):
+
+    /usr/libexec/platform-python -m stop_idle_sessions.main --syslog
+
+The purpose of using `/usr/libexec/platform-python` rather than
+`/usr/bin/python3` is to ensure that the base OS version of Python is selected
+(i.e., the one which hosts the distro-provided `python3-*` packages) and NOT an
+alternative via `/etc/alternatives`.
+
+The location to a configuration may be specified with `-c` or simply by using
+the default location, `/etc/stop-idle-sessions.conf`. It may contain the
+following contents to control execution:
+
+    # Configuration for stop-idle-sessions. See the README:
+    # https://github.com/liverwust/stop-idle-sessions/README.md
+    #
+    
+    [stop-idle-sessions]
+    
+    # Threshold for termination of idle sessions, specified in minutes.
+    timeout = 15
+    
+    # Set to a comma-separated list of users (default empty) to identify users
+    # whose sessions should not be affected by session termination.
+    #excluded-users = root, someone, serviceacct
+    
+    # Override to 'yes' (default 'no') to prevent stop-idle-sessions from
+    # actually taking action. Instead, it will simply log the actions that it
+    # would take.
+    #dry-run = yes
+    
+    # Override to 'yes' (default 'no') to force logging to syslog, even when
+    # run from the command-line. The SystemD unit will run the program with
+    # --syslog and so this option is probably not necessary.
+    #syslog = yes
+
+    # In the event that --syslog is provided (or syslog = yes is set), AND the
+    # --verbose flag is provided (or verbose = yes is set), then this option
+    # can be used to write out debugging information to a file at the given
+    # location. This is useful because the LOG_USER facility may not write
+    # less-important messages otherwise. This option is left blank by default,
+    # which means that no file is used for this purpose.
+    #debug-log = /var/log/stop-idle-sessions.log
+    
+    # Override to 'yes' (default 'no') to trigger debug logging, which will
+    # print diagnostic messages every time that the application is run.
+    #verbose = yes 
+
+Although the timeout is specified, it is still necessary to set up a recurring
+SystemD timer or cronjob to run the app. _It will not run itself._
+
 ## Runtime Behavior
 
 By design, this `stop-idle-sessions` package is _stateless_. It is not intended

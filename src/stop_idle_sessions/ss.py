@@ -128,9 +128,9 @@ class SSInvocation:
         socket_re = re.compile(r'^(?P<State>[-A-Z0-9]+)\s+'
                             r'(?P<RecvQ>\d+)\s+'
                             r'(?P<SendQ>\d+)\s+'
-                            r'\[?(?P<LocalAddress>[:.0-9]+)\]?:'
+                            r'\[?(?P<LocalAddress>[:.0-9a-fA-F]+)\]?:'
                             r'(?P<LocalPort>\d+)\s+'
-                            r'\[?(?P<PeerAddress>[:.0-9]+)\]?:'
+                            r'\[?(?P<PeerAddress>[:.0-9a-fA-F]+)\]?:'
                             r'(?P<PeerPort>\d+|\*)\s*'
                             r'(users:\((?P<Process>.*)\))?\s*$')
 

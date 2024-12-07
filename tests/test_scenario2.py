@@ -4,11 +4,14 @@ In Scenario 2, there are several sessions:
 
   * Session 5 is an active SSH session running a text editor and generating
     keystrokes. It should be left alone.
+
   * Session 7 is an idle SSH session which should be terminated. However, it
     is running vncserver and so it should be the case that only the Session
     Leader is terminated, not other processes.
+
   * Session 13 was created by Visual Studio Code. It doesn't have an assigned
     TTY/PTY and should be left alone.
+
   * Session 14 is an idle SSH session but which is currently connected to the
     VNC session in the backend. However, the VNC session itself is idle.
     Session 14's Session Leader should be terminated (but the VNC server left
@@ -16,8 +19,10 @@ In Scenario 2, there are several sessions:
     will terminate all remaining processes in Session 14 (which happen to be
     direct children of the Session Leader) and so this one will go away
     entirely.
+
   * Session 16 has a long-running Ansible connection under a dedicated service
     account name. Because of the username, it should be left alone.
+
   * Session c1 is a GDM login screen. Although loginctl indicates this as idle
     for a long time, it should be left alone.
 """

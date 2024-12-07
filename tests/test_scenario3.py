@@ -1155,7 +1155,7 @@ class Scenario2MainLoopTestCase(test_main.MainLoopTestCase):
                 session_type="tty",
                 uid=0,
                 tty="pts/5",
-                leader=0,
+                leader=1602192,
                 scope="session-4089.scope",
                 scope_path="/user.slice/user-0.slice/session-4089.scope"),
             Mock(spec_set=stop_idle_sessions.logind.Session,

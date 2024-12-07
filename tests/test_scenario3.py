@@ -132,63 +132,63 @@ class Scenario2LogindTestCase(test_logind.LogindTestCase):
         return [
             {
                 "session_id": "4089",
-                "uid": "0",
+                "uid": 0,
                 "tty": "pts/5",
-                "leader": "1602192",
+                "leader": 1602192,
                 "session_type": "tty",
                 "scope": "session-4089.scope",
                 "scope_path": "/user.slice/user-0.slice/session-4089.scope"
             },
             {
                 "session_id": "4096",
-                "uid": "1000",
+                "uid": 1000,
                 "tty": "pts/0",
-                "leader": "1607896",
+                "leader": 1607896,
                 "session_type": "tty",
                 "scope": "session-4096.scope",
                 "scope_path": "/user.slice/user-1000.slice/session-4096.scope"
             },
             {
                 "session_id": "4098",
-                "uid": "21106",
+                "uid": 21106,
                 "tty": "pts/8",
-                "leader": "1612636",
+                "leader": 1612636,
                 "session_type": "tty",
                 "scope": "session-4098.scope",
                 "scope_path": "/user.slice/user-21106.slice/session-4098.scope"
             },
             {
                 "session_id": "65",
-                "uid": "0",
+                "uid": 0,
                 "tty": "pts/1",
-                "leader": "0",
+                "leader": 0,
                 "session_type": "tty",
                 "scope": "session-65.scope",
                 "scope_path": "/user.slice/user-0.slice/session-65.scope"
             },
             {
                 "session_id": "72",
-                "uid": "1000",
+                "uid": 1000,
                 "tty": "pts/2",
-                "leader": "0",
+                "leader": 0,
                 "session_type": "tty",
                 "scope": "session-72.scope",
                 "scope_path": "/user.slice/user-1000.slice/session-72.scope"
             },
             {
                 "session_id": "82",
-                "uid": "1000",
+                "uid": 1000,
                 "tty": "pts/0",
-                "leader": "67880",
+                "leader": 67880,
                 "session_type": "tty",
                 "scope": "session-82.scope",
                 "scope_path": "/user.slice/user-1000.slice/session-82.scope"
             },
             {
                 "session_id": "4100",
-                "uid": "1000",
+                "uid": 1000,
                 "tty": "pts/9",
-                "leader": "1617896",
+                "leader": 1617896,
                 "session_type": "tty",
                 "scope": "session-4100.scope",
                 "scope_path": "/user.slice/user-1000.slice/session-4100.scope"

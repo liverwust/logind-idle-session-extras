@@ -128,9 +128,9 @@ class SSInvocation:
         socket_re = re.compile(r'^(?P<State>[-A-Z0-9]+)\s+'
                             r'(?P<RecvQ>\d+)\s+'
                             r'(?P<SendQ>\d+)\s+'
-                            r'\[?(?P<LocalAddress>[:.0-9a-fA-F]+)\]?:'
+                            r'\[?(?P<LocalAddress>[:.0-9a-fA-F]+|\*)\]?:'
                             r'(?P<LocalPort>\d+)\s+'
-                            r'\[?(?P<PeerAddress>[:.0-9a-fA-F]+)\]?:'
+                            r'\[?(?P<PeerAddress>[:.0-9a-fA-F]+|\*)\]?:'
                             r'(?P<PeerPort>\d+|\*)\s*'
                             r'(users:\((?P<Process>.*)\))?\s*$')
 
@@ -175,8 +175,11 @@ class SSInvocation:
                     ))
 
             if socket_match.group('State') == 'LISTEN':
+                local_address = socket_match.group('LocalAddress')
+                if local_address == '*':
+                    local_address = '::'
                 self.listen_sockets.append(Socket(
-                    addr=ip_address(socket_match.group('LocalAddress')),
+                    addr=ip_address(local_address),
                     port=int(socket_match.group('LocalPort')),
                     processes=processes
                 ))

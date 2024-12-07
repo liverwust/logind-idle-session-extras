@@ -1091,17 +1091,18 @@ class Scenario2LoopbackConnectionTestCase(test_ss.LoopbackConnectionTestCase):
                 (ip_address("192.168.99.40"), 22),
                 (ip_address("127.0.0.1"), 5901),
                 (ip_address("192.168.0.124"), 1780),
-                (ip_address("192.168.34.80"), 959),
                 (ip_address("192.168.121.30"), 9997),
                 (ip_address("192.168.0.124"), 1780),
                 (ip_address("127.0.0.1"), 45502),
                 (ip_address("192.168.99.40"), 22),
                 (ip_address("192.168.0.53"), 52338),
                 (ip_address("192.168.99.40"), 22),
-                (ip_address("192.168.34.80"), 903),
                 (ip_address("192.168.7.14"), 49764),
                 (ip_address("192.168.2.100"), 3128),
-                (ip_address("192.168.0.53"), 35578)
+                (ip_address("192.168.0.53"), 35578),
+                (ip_address("192.168.0.203"), 2049),
+                (ip_address("192.168.0.202"), 2049),
+                (ip_address("::ffff:c0a8:630a"), 52311)
         ])
 
     def _expected_connections(self) -> List[stop_idle_sessions.ss.LoopbackConnection]:

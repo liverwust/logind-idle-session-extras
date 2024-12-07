@@ -110,7 +110,7 @@ class MainLoopTestCase(TestCase):
         self.addCleanup(uid_to_username_patcher.stop)
 
         retrieve_idle_time_patcher = patch(
-                'stop_idle_sessions.x11.X11SessionProcesses.retrieve_idle_time',
+                'stop_idle_sessions.x11.X11DisplayCollector.retrieve_idle_time',
                 new=Mock(side_effect=self._mock_retrieve_idle_time)
         )
         retrieve_idle_time_patcher.start()

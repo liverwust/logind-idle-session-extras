@@ -128,9 +128,9 @@ def load_sessions() -> List[Session]:
     # Constructing the tree involves many layers of nesting, necessarily
     # pylint: disable=too-many-nested-blocks
     sessions: List[Session] = []
+    display_collector = stop_idle_sessions.x11.X11DisplayCollector()
     for logind_session in logind_sessions:
         try:
-            display_info = stop_idle_sessions.x11.X11SessionProcesses()
 
             if logind_session.uid not in resolved_usernames:
                 username = stop_idle_sessions.getent.uid_to_username(
@@ -144,7 +144,7 @@ def load_sessions() -> List[Session]:
             )
             for process in ps_table:
                 tunneled_processes: List[stop_idle_sessions.ps.Process] = []
-                display_info.add(process)
+                display_collector.add(logind_session.session_id, process)
 
                 # Associate Processes thru loopback to other Processes
                 for loopback_connection in loopback_connections:
@@ -170,31 +170,44 @@ def load_sessions() -> List[Session]:
                         logind_session.tty
                 )
 
-            display_result = display_info.retrieve_least_display_idletime()
-
-            if display_result is not None:
-                sessions.append(Session(
-                        session=logind_session,
-                        tty=session_tty,
-                        display=display_result[0],
-                        display_idle=display_result[1],
-                        username=resolved_usernames[logind_session.uid],
-                        processes=session_processes
-                ))
-            else:
-                sessions.append(Session(
-                        session=logind_session,
-                        tty=session_tty,
-                        display=None,
-                        display_idle=None,
-                        username=resolved_usernames[logind_session.uid],
-                        processes=session_processes
-                ))
+            sessions.append(Session(
+                    session=logind_session,
+                    tty=session_tty,
+                    display=None,
+                    display_idle=None,
+                    username=resolved_usernames[logind_session.uid],
+                    processes=session_processes
+            ))
 
         except SessionParseError as err:
             logger.warning('Could not successfully parse information related '
                            'to session id="%s": %s',
                            logind_session.session_id,
+                           err.message)
+            traceback.print_exc(file=sys.stderr)
+
+    # Go back and resolve display information and idletimes for their Sessions
+    sessions_prex11, sessions = sessions, []
+    for session in sessions_prex11:
+        try:
+            display_info = display_collector.retrieve_least_display_idletime(
+                    session.session.session_id
+            )
+            if display_info is None:
+                sessions.append(session)
+            else:
+                sessions.append(Session(
+                    session=session.session,
+                    tty=session.tty,
+                    display=display_info[0],
+                    display_idle=display_info[1],
+                    username=session.username,
+                    processes=session.processes
+                ))
+        except SessionParseError as err:
+            logger.warning('Could not successfully parse X11 info related '
+                           'to session %s: %s',
+                           session.string_representation(),
                            err.message)
             traceback.print_exc(file=sys.stderr)
 

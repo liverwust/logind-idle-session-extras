@@ -3,9 +3,8 @@
 
 from unittest import TestCase
 
-from stop_idle_sessions.list_set import compare_list_sets
 from stop_idle_sessions.ps import Process
-from stop_idle_sessions.x11 import X11SessionProcesses
+from stop_idle_sessions.x11 import X11DisplayCollector
 
 
 class ParseCommandLineTestCase(TestCase):
@@ -21,7 +20,7 @@ class ParseCommandLineTestCase(TestCase):
                           "-localhost")
         expected_results = (':1', '/home/auser/.Xauthority')
 
-        actual_results = X11SessionProcesses.parse_xserver_cmdline(
+        actual_results = X11DisplayCollector.parse_xserver_cmdline(
                 sample_cmdline
         )
 
@@ -36,20 +35,20 @@ class ParseCommandLineTestCase(TestCase):
                           "-listen 4 -listen 5 -displayfd 6")
         expected_results = (':1024', '/run/user/42/.mutter-Xwaylandauth.8ZZMX2')
 
-        actual_results = X11SessionProcesses.parse_xserver_cmdline(
+        actual_results = X11DisplayCollector.parse_xserver_cmdline(
                 sample_cmdline
         )
 
         self.assertEqual(expected_results, actual_results)
 
 
-class X11SessionProcessesTestCase(TestCase):
+class X11DisplayCollectorTestCase(TestCase):
     """Verify correct accumulation and handling of process information"""
 
     def test_normal_collection_of_vnc_processes(self):
         """This is a common case where a few VNC processes share a DISPLAY"""
 
-        bag = X11SessionProcesses()
+        bag = X11DisplayCollector()
         processes = [
             Process(
                     pid=20272,
@@ -84,12 +83,11 @@ class X11SessionProcessesTestCase(TestCase):
         ]
 
         for process in processes:
-            bag.add(process)
+            bag.add('session_id', process)
 
-        expected_candidates = [
-                (':1', None),
-                (':1', '/home/auser/.Xauthority')
-        ]
-        actual_candidates = bag.get_all_candidates()
-        self.assertTrue(compare_list_sets(expected_candidates,
-                                          actual_candidates))
+        # Reach directly into the object for now
+        # pylint: disable=protected-access
+        self.assertDictEqual(bag._session_displays,
+                             {'session_id': set([':1'])})
+        self.assertDictEqual(bag._display_xauthorities,
+                             {':1': set([None, '/home/auser/.Xauthority'])})

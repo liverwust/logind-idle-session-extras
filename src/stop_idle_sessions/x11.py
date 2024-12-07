@@ -5,7 +5,7 @@ from collections import defaultdict
 from datetime import timedelta
 import os
 import re
-from typing import List, Mapping, Optional, Set, Tuple
+from typing import Dict, Optional, Set, Tuple
 
 import Xlib.display
 import Xlib.error
@@ -14,26 +14,39 @@ from .exception import SessionParseError
 from .ps import Process
 
 
-class X11SessionProcesses:
-    """Collect related Process objects and use them to determine X11 params
+class X11DisplayCollector:
+    """Collect related Process objects to determine X11 params across sessions
 
     There are often many Process objects associated with a SystemD scope or
     session. There may be one (or more!) instances of the DISPLAY or
     XAUTHORITY variables among them. Some of their commandlines may even
     provide clues as to these parameters.
 
+    In some cases, such as for x11vnc, the full picture may not emerge until
+    _multiple_ sessions have been processed. For this reason, the
+    X11DisplayCollector is intended to provide a global repository that all
+    session processes are fed into. It can then provide back an iteration of
+    identified displays associated with each session.
+
     Once collected, these parameters can point to one or more DISPLAYs which
     may provide an idle time (via the X11 Screen Saver extension).
     """
 
     def __init__(self):
-        # Each "candidate tuple" associates a DISPLAY environment variable (or
-        # parsed command-line value) with an XAUTHORITY environment variable
-        # (or parsed command-line value). XAUTHORITY may be absent.
-        self._candidate_tuples: List[Tuple[str, Optional[str]]] = []
+        # Each session identifier string may be associated with one or more
+        # individual DISPLAY candidates.
+        self._session_displays: Dict[str, Set[str]] = defaultdict(set)
 
-    def add(self, process: Process):
-        """Add information from a Process to the internal tracking list
+        # Subsequently, each individual DISPLAY can be associated with one or
+        # more individual XAUTHORITY candidates. Note that, for this
+        # collection, the value set may (and generally should) include a None
+        # value, to indicate that the DISPLAY should be attempted to be
+        # accessed with no Xauthority (in addition to any other located
+        # candidate values).
+        self._display_xauthorities: Dict[str, Set[Optional[str]]] = defaultdict(set)
+
+    def add(self, session: str, process: Process):
+        """Add information from a Process and its session ID to tracking
 
         This will extract information from the given Process which will allow
         the "candidate tuples" list to expand and incorporate the new info.
@@ -42,13 +55,16 @@ class X11SessionProcesses:
         """
 
         # Try some specific command lines
-        xserver_match = X11SessionProcesses.parse_xserver_cmdline(process.cmdline)
+        xserver_match = X11DisplayCollector.parse_xserver_cmdline(process.cmdline)
+        x11vnc_match = X11DisplayCollector.parse_x11vnc_cmdline(process.cmdline)
 
         display: Optional[str] = None
         xauthority: Optional[str] = None
 
         if xserver_match[0] is not None:
             display = xserver_match[0]
+        elif x11vnc_match is not None:
+            display = x11vnc_match
         elif 'DISPLAY' in process.environ:
             display = process.environ['DISPLAY']
 
@@ -58,35 +74,13 @@ class X11SessionProcesses:
             xauthority = process.environ['XAUTHORITY']
 
         if display is not None:
-            self._candidate_tuples.append((display, xauthority))
+            self._session_displays[session].add(display)
+            self._display_xauthorities[display].add(xauthority)
+            if None not in self._display_xauthorities[display]:
+                self._display_xauthorities[display].add(None)
 
-    def get_all_candidates(self) -> List[Tuple[str, Optional[str]]]:
-        """Review each of the candidates tuples for DISPLAY/XAUTHORITY pairs
-
-        Every DISPLAY can be tried without any XAUTHORITY. If a given
-        XAUTHORITY shows up for a DISPLAY, then return it as a candidate.
-        """
-
-        display_xauthorities: Mapping[str,
-                                      Set[Optional[str]]] = defaultdict(set)
-
-        for display, xauthority in self._candidate_tuples:
-            display_xauthorities[display].add(xauthority)
-
-        # Make sure that we try XAUTHORITY = None for each of these
-        for xauthority_set in display_xauthorities.values():
-            if None not in xauthority_set:
-                xauthority_set.add(None)
-
-        resulting_list: List[Tuple[str, Optional[str]]] = []
-        for display, xauthority_set in display_xauthorities.items():
-            for xauthority in xauthority_set:
-                resulting_list.append((display, xauthority))
-
-        return resulting_list
-
-    def retrieve_least_display_idletime(self) -> Optional[Tuple[str,
-                                                                timedelta]]:
+    def retrieve_least_display_idletime(self, session: str) -> Optional[Tuple[str,
+                                                                        timedelta]]:
         """Retrieve the smallest of DISPLAY idletimes, and the DISPLAY itself
 
         Why the smallest? We want to be as optimistic as possible about idle
@@ -106,25 +100,26 @@ class X11SessionProcesses:
         any_exception: Optional[SessionParseError] = None
         result: Optional[Tuple[str, timedelta]] = None
 
-        for display, xauthority in self.get_all_candidates():
-            try:
-                candidate_idletime = X11SessionProcesses.retrieve_idle_time(
-                        display,
-                        xauthority
-                )
-                if candidate_idletime is not None:
-                    if result is None:
-                        result = (display, candidate_idletime)
-                    elif candidate_idletime < result[1]:
-                        result = (display, candidate_idletime)
+        for display in self._session_displays[session]:
+            for xauthority in self._display_xauthorities[display]:
+                try:
+                    candidate_idletime = X11DisplayCollector.retrieve_idle_time(
+                            display,
+                            xauthority
+                    )
+                    if candidate_idletime is not None:
+                        if result is None:
+                            result = (display, candidate_idletime)
+                        elif candidate_idletime < result[1]:
+                            result = (display, candidate_idletime)
 
-            except SessionParseError as err:
-                # Given the choice: If an XAUTHORITY was determined, then
-                # trust the _new_ error. If no XAUTHORITY was determined, then
-                # keep the _old_ error (because it is very likely that a None
-                # XAUTHORITY would fail normally).
-                if any_exception is None or xauthority is not None:
-                    any_exception = err
+                except SessionParseError as err:
+                    # Given the choice: If an XAUTHORITY was determined, then
+                    # trust the _new_ error. If no XAUTHORITY was determined, then
+                    # keep the _old_ error (because it is very likely that a None
+                    # XAUTHORITY would fail normally).
+                    if any_exception is None or xauthority is not None:
+                        any_exception = err
 
         if result is not None:
             return result
@@ -134,7 +129,7 @@ class X11SessionProcesses:
 
     @staticmethod
     def parse_xserver_cmdline(cmdline: str) -> Tuple[Optional[str],
-                                                  Optional[str]]:
+                                                     Optional[str]]:
         """Attempt to identify information from an X command line
 
         The first element of the returned tuple is a candidate DISPLAY, if one
@@ -149,6 +144,23 @@ class X11SessionProcesses:
             return (xserver_match.group(1), xserver_match.group(2))
 
         return (None, None)
+
+    @staticmethod
+    def parse_x11vnc_cmdline(cmdline: str) -> Optional[str]:
+        """Attempt to identify information from an x11vnc command line
+
+        Similar to an X server, it may be possible to obtain information from
+        an x11vnc command line. This is a little different because it can't
+        usually provide XAUTHORITY information, but only XDISPLAY information.
+        """
+
+        x11vnc_re = re.compile(r'^.*x11vnc.*-display\s+(:[0-9]+).*$')
+
+        x11vnc_match = x11vnc_re.match(cmdline)
+        if x11vnc_match is not None:
+            return x11vnc_match.group(1)
+
+        return None
 
     @staticmethod
     def retrieve_idle_time(display: str,

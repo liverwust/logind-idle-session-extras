@@ -114,6 +114,6 @@ class X11DisplayCollectorTestCase(TestCase):
                 (':1', timedelta(seconds=1200))
         )
 
-        self._mocked_retrieve_idle_time.assert_any_call(
+        self._mocked_retrieve_idle_time.assert_called_once_with(
                 ':1', '/home/auser/.Xauthority'
         )

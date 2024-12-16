@@ -38,12 +38,8 @@ class X11DisplayCollector:
         self._session_displays: Dict[str, Set[str]] = defaultdict(set)
 
         # Subsequently, each individual DISPLAY can be associated with one or
-        # more individual XAUTHORITY candidates. Note that, for this
-        # collection, the value set may (and generally should) include a None
-        # value, to indicate that the DISPLAY should be attempted to be
-        # accessed with no Xauthority (in addition to any other located
-        # candidate values).
-        self._display_xauthorities: Dict[str, Set[Optional[str]]] = defaultdict(set)
+        # more individual XAUTHORITY candidates.
+        self._display_xauthorities: Dict[str, Set[str]] = defaultdict(set)
 
     def add(self, session: str, process: Process):
         """Add information from a Process and its session ID to tracking
@@ -75,9 +71,8 @@ class X11DisplayCollector:
 
         if display is not None:
             self._session_displays[session].add(display)
-            self._display_xauthorities[display].add(xauthority)
-            if None not in self._display_xauthorities[display]:
-                self._display_xauthorities[display].add(None)
+            if xauthority is not None:
+                self._display_xauthorities[display].add(xauthority)
 
     def retrieve_least_display_idletime(self, session: str) -> Optional[Tuple[str,
                                                                         timedelta]]:

@@ -10,7 +10,7 @@ long_description = (this_directory / "README.md").read_text()
 
 setup(
     name="stop-idle-sessions",
-    version="0.9.2",
+    version="0.9.3",
     description=("Stop idle `systemd-logind` sessions to prevent interactive "
                  "access from unattended terminals. E.g., a laptop left "
                  "unlocked in a coffee shop, with an SSH session into an "

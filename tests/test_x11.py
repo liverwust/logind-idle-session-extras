@@ -54,7 +54,8 @@ class X11DisplayCollectorTestCase(TestCase):
         """Mock implementation of X11DisplayCollector.retrieve_idle_time"""
         lookup_table: Mapping[Tuple[str, Optional[str]], Optional[timedelta]] = {
                 (':1', '/home/auser/.Xauthority'): timedelta(seconds=1200),
-                (':1', None): None
+                (':1', None): None,
+                (':2', None): None
         }
         return lookup_table[(display, xauthority)]
 
@@ -117,3 +118,51 @@ class X11DisplayCollectorTestCase(TestCase):
         self._mocked_retrieve_idle_time.assert_called_once_with(
                 ':1', '/home/auser/.Xauthority'
         )
+
+    def test_display_only_no_xauthority(self):
+        """This is where sshd has a DISPLAY but advertises no XAUTHORITY
+
+        The intention is to simulate the following scenario:
+          1) User has set up an SSH session with `ssh -X` (X11Forwarding).
+          2) stop-idle-sessions sees this information available but does not
+             retrieve xauthority information.
+          3) "X11 connection rejected because of wrong authentication."
+             message is displayed on the user's console.
+
+        For now, disregard any DISPLAY for a Session if it does not have a
+        discernable XAUTHORITY. This may be undesirable in the long-run --
+        i.e., it might be better to detect this _specific_ condition rather
+        than disregarding all unauthenticated X11 -- but it will fix the issue
+        for now.
+        """
+
+        bag = stop_idle_sessions.x11.X11DisplayCollector()
+        processes = [
+            Process(
+                    pid=20272,
+                    cmdline='sshd: auser [priv]',
+                    environ={}
+            ),
+            Process(
+                    pid=20277,
+                    cmdline='sshd: auser@pts/2',
+                    environ={}
+            ),
+            Process(
+                    pid=20278,
+                    cmdline='-zsh',
+                    environ={
+                        'DISPLAY': ':2'
+                    }
+            )
+        ]
+
+        for process in processes:
+            bag.add('session_id', process)
+
+        self.assertEqual(
+                bag.retrieve_least_display_idletime('session_id'),
+                None
+        )
+
+        self._mocked_retrieve_idle_time.assert_not_called()
